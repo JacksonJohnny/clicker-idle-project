@@ -43,59 +43,63 @@ export class ClickerScene extends Phaser.Scene {
     this.activePage = 0;
     this.navHeight = 86;
     this.navTop = height - this.navHeight;
+    this.tapCenterY = 495;
     this.gamePage = this.add.container(0, 0);
     this.boostsPage = this.add.container(0, 0);
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x081018, 0.2);
 
     this.titleText = this.add
-      .text(width / 2, 46, 'CLICKER GAME', {
+      .text(width / 2, 48, 'CLICKER GAME', {
         fontFamily: 'Bungee, sans-serif',
-        fontSize: '42px',
+        fontSize: '38px',
         color: '#ffd166',
         stroke: '#9f5f00',
-        strokeThickness: 7,
+        strokeThickness: 5,
       })
       .setOrigin(0.5);
 
     this.coinsText = this.add
-      .text(width / 2, 130, '', {
+      .text(width / 2, 134, '', {
         fontFamily: 'Nunito, sans-serif',
-        fontSize: '54px',
+        fontSize: '52px',
         color: '#ffffff',
         fontStyle: '800',
       })
       .setOrigin(0.5);
 
     this.statsText = this.add
-      .text(width / 2, 188, '', {
+      .text(width / 2, 202, '', {
         fontFamily: 'Nunito, sans-serif',
-        fontSize: '26px',
+        fontSize: '24px',
         color: '#9bd3ff',
       })
       .setOrigin(0.5);
 
-    this.coreButton = this.add.circle(width / 2, 410, 116, 0xff8f00).setInteractive({ useHandCursor: true });
-    this.coreGlow = this.add.circle(width / 2, 410, 136, 0xffc04d, 0.35);
-    const coreInner = this.add.circle(width / 2, 410, 84, 0xffd166);
+    this.coreGlow = this.add.circle(width / 2, this.tapCenterY, 136, 0xffc04d, 0.18);
+    const coreRing = this.add.circle(width / 2, this.tapCenterY, 124, 0xffb000, 0.12).setStrokeStyle(3, 0xffc857, 0.5);
+    this.coreButton = this.add.circle(width / 2, this.tapCenterY, 116, 0xe98600).setInteractive({ useHandCursor: true });
+    const coreInner = this.add.circle(width / 2, this.tapCenterY, 84, 0xe0b552);
 
     this.buttonLabel = this.add
-      .text(width / 2, 410, 'TAP', {
+      .text(width / 2, this.tapCenterY, 'TAP', {
         fontFamily: 'Bungee, sans-serif',
-        fontSize: '48px',
+        fontSize: '46px',
         color: '#6c3200',
       })
       .setOrigin(0.5);
 
     const tapHint = this.add
-      .text(width / 2, 535, 'Tap to earn coins', {
+      .text(width / 2, 650, 'Tap to earn coins', {
         fontFamily: 'Nunito, sans-serif',
-        fontSize: '24px',
-        color: '#ffffff',
+        fontSize: '22px',
+        color: '#c9d6df',
+        fontStyle: '700',
       })
       .setOrigin(0.5);
 
-    this.gamePage.add([this.coreGlow, this.coreButton, coreInner, this.buttonLabel, tapHint]);
+    this.tapButtonVisuals = [coreRing, this.coreButton, coreInner, this.buttonLabel];
+    this.gamePage.add([this.coreGlow, ...this.tapButtonVisuals, tapHint]);
 
     this.coreButton.on('pointerdown', (pointer) => {
       this.corePointerDown = { x: pointer.x, y: pointer.y };
@@ -111,14 +115,14 @@ export class ClickerScene extends Phaser.Scene {
       }
 
       const gain = this.engine.tap();
-      this.coreButton.setScale(0.94);
+      this.tapButtonVisuals.forEach((object) => object.setScale(0.94));
       this.tweens.add({
-        targets: this.coreButton,
+        targets: this.tapButtonVisuals,
         scale: 1,
         duration: 120,
         ease: 'Back.Out',
       });
-      this.spawnFloatingText(`+${formatCoins(gain)}`);
+      this.spawnFloatingText(`+${formatCoins(gain)}`, '#ffffff', this.tapCenterY);
       this.renderState();
     });
 
