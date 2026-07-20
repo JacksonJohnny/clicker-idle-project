@@ -27,6 +27,10 @@ function cloneUpgrades(upgrades) {
   return upgrades.map((upgrade) => ({ ...upgrade, level: 0 }));
 }
 
+function cloneBoosts(boosts) {
+  return boosts.map((boost) => ({ ...boost, purchased: false }));
+}
+
 export function formatCoins(value) {
   const amount = toDecimal(value);
 
@@ -54,37 +58,60 @@ export function calculateUpgradeCost(upgrade) {
   return baseCost.times(growth.pow(upgrade.level)).floor();
 }
 
-export function calculateStats(upgrades) {
+export function getReachedMilestones(upgrade) {
+  return (upgrade.milestones ?? []).filter((level) => upgrade.level >= level);
+}
+
+export function isUpgradeUnlocked(upgrade, upgrades) {
+  if (!upgrade.unlockAfter || upgrade.level > 0) {
+    return true;
+  }
+
+  const prerequisite = upgrades.find((item) => item.id === upgrade.unlockAfter);
+  return prerequisite?.level > 0;
+}
+
+export function calculateStats(upgrades, boosts = []) {
   const clickExtra = upgrades
     .filter((upgrade) => upgrade.type === 'click')
     .reduce((sum, upgrade) => sum.plus(toDecimal(upgrade.baseValue).times(upgrade.level)), new Decimal(0));
 
   const autoRate = upgrades
     .filter((upgrade) => upgrade.type === 'auto')
-    .reduce((sum, upgrade) => sum.plus(toDecimal(upgrade.baseValue).times(upgrade.level)), new Decimal(0));
+    .reduce((sum, upgrade) => {
+      const milestoneMultiplier = Decimal.pow(2, getReachedMilestones(upgrade).length);
+      return sum.plus(toDecimal(upgrade.baseValue).times(upgrade.level).times(milestoneMultiplier));
+    }, new Decimal(0));
+
+  const productionMultiplier = boosts
+    .filter((boost) => boost.purchased)
+    .reduce((multiplier, boost) => multiplier.times(toDecimal(boost.multiplier)), new Decimal(1));
 
   return {
     perClick: new Decimal(1).plus(clickExtra),
-    perSecond: autoRate,
+    perSecond: autoRate.times(productionMultiplier),
+    productionMultiplier,
   };
 }
 
-export function createInitialState(upgrades) {
+export function createInitialState(upgrades, boosts = []) {
   const state = {
     coins: new Decimal(0),
     totalClicks: 0,
     perClick: new Decimal(1),
     perSecond: new Decimal(0),
     upgrades: cloneUpgrades(upgrades),
+    boosts: cloneBoosts(boosts),
   };
 
   return recalculateState(state);
 }
 
 export function recalculateState(state) {
-  const stats = calculateStats(state.upgrades);
+  const stats = calculateStats(state.upgrades, state.boosts);
   state.perClick = stats.perClick;
   state.perSecond = stats.perSecond;
+  state.productionMultiplier = stats.productionMultiplier;
   return state;
 }
 
@@ -102,6 +129,11 @@ export function mergeStateFromSave(state, loaded) {
     return existing ? { ...upgrade, level } : upgrade;
   });
 
+  state.boosts = state.boosts.map((boost) => {
+    const existing = loaded.boosts?.find((entry) => entry.id === boost.id);
+    return { ...boost, purchased: existing?.purchased === true };
+  });
+
   return recalculateState(state);
 }
 
@@ -112,14 +144,52 @@ export function buyUpgrade(state, upgradeId) {
     return { ok: false, reason: 'missing-upgrade' };
   }
 
+  if (!isUpgradeUnlocked(upgrade, state.upgrades)) {
+    return { ok: false, reason: 'locked' };
+  }
+
   const cost = calculateUpgradeCost(upgrade);
 
   if (state.coins.lt(cost)) {
     return { ok: false, reason: 'insufficient-coins', cost };
   }
 
+  const previousMilestoneCount = getReachedMilestones(upgrade).length;
   state.coins = state.coins.minus(cost);
   upgrade.level += 1;
+  recalculateState(state);
+
+  const reachedMilestones = getReachedMilestones(upgrade);
+
+  return {
+    ok: true,
+    cost,
+    milestoneReached: reachedMilestones.length > previousMilestoneCount ? reachedMilestones.at(-1) : null,
+  };
+}
+
+export function buyBoost(state, boostId) {
+  const boost = state.boosts.find((item) => item.id === boostId);
+
+  if (!boost || boost.purchased) {
+    return { ok: false, reason: boost ? 'already-purchased' : 'missing-boost' };
+  }
+
+  const highestGeneratorLevel = state.upgrades
+    .filter((upgrade) => upgrade.type === 'auto')
+    .reduce((highest, upgrade) => Math.max(highest, upgrade.level), 0);
+
+  if (highestGeneratorLevel < boost.requiredLevel) {
+    return { ok: false, reason: 'locked' };
+  }
+
+  const cost = toDecimal(boost.cost);
+  if (state.coins.lt(cost)) {
+    return { ok: false, reason: 'insufficient-coins', cost };
+  }
+
+  state.coins = state.coins.minus(cost);
+  boost.purchased = true;
   recalculateState(state);
 
   return { ok: true, cost };
@@ -172,12 +242,13 @@ export function serializeState(state) {
     coins: state.coins.toString(),
     totalClicks: state.totalClicks,
     upgrades: state.upgrades.map((upgrade) => ({ id: upgrade.id, level: upgrade.level })),
+    boosts: state.boosts.map((boost) => ({ id: boost.id, purchased: boost.purchased })),
     savedAt: Date.now(),
   };
 }
 
-export function createClickerController(upgrades) {
-  const state = createInitialState(upgrades);
+export function createClickerController(upgrades, boosts = []) {
+  const state = createInitialState(upgrades, boosts);
 
   return {
     state,
@@ -200,6 +271,9 @@ export function createClickerController(upgrades) {
     },
     tryBuyUpgrade(upgradeId) {
       return buyUpgrade(state, upgradeId);
+    },
+    tryBuyBoost(boostId) {
+      return buyBoost(state, boostId);
     },
     getUpgradeCost(upgradeId) {
       const upgrade = state.upgrades.find((item) => item.id === upgradeId);
