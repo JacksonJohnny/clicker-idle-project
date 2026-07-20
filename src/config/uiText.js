@@ -5,7 +5,7 @@ export const UI_TEXT = {
   storeTitle: 'GENERATORS',
   boostsTitle: 'MILESTONE BOOSTS',
   settingsTitle: 'SETTINGS',
-  tabs: ['LOJA', 'JOGO', 'BOOSTS'],
+  tabs: ['STORE', 'TAP', 'BOOSTS'],
   sound: 'SOUND',
   soundDescription: 'Sound effects for purchases',
   vibration: 'VIBRATION',
