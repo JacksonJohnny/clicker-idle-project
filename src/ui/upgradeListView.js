@@ -2,23 +2,30 @@ import { COLORS, FONT_FAMILIES } from '../config/theme.js';
 import { GENERATOR_EFFICIENCY_STAR_MAX } from '../data/metaUpgrades.js';
 
 const MIN_BUY_HIT = 44;
+/** Half of row width inset (`width - 58`). */
+const ROW_SIDE_INSET = 29;
+/** Gap between BUY and the row's right border. */
+const BUY_INNER_PAD = 10;
 
 export function buildUpgradeListView({ scene, container, upgrades, layout, onBuy }) {
   const { rowHeight, rowGap, compactRows, listTop } = layout;
   const step = rowHeight + rowGap;
   const startY = listTop + rowHeight / 2;
   const labelFontSize = compactRows ? '20px' : '24px';
-  const infoFontSize = compactRows ? '16px' : '20px';
-  const buyButtonWidth = compactRows ? 130 : 146;
-  const buyButtonHeight = Math.max(MIN_BUY_HIT, compactRows ? 48 : 56);
-  const buyButtonX = scene.scale.width - buyButtonWidth / 2 - 34;
-  const levelX = buyButtonX - buyButtonWidth / 2 - 14;
-  const buyFontSize = compactRows ? '16px' : '18px';
+  const infoFontSize = compactRows ? '15px' : '17px';
+  const buyButtonWidth = compactRows ? 112 : 124;
+  const buyButtonHeight = Math.max(MIN_BUY_HIT, compactRows ? 44 : 48);
+  const buyButtonX = scene.scale.width - ROW_SIDE_INSET - BUY_INNER_PAD - buyButtonWidth / 2;
+  const levelX = buyButtonX - buyButtonWidth / 2 - 12;
+  const infoMaxWidth = Math.max(120, levelX - 20 - 38);
+  const buyFontSize = compactRows ? '15px' : '16px';
   const starFontSize = compactRows ? '14px' : '15px';
 
   return upgrades.map((upgrade, index) => {
     const y = startY + index * step;
-    const rowBg = scene.add.rectangle(scene.scale.width / 2, y, scene.scale.width - 58, rowHeight, 0x133046, 0.95).setStrokeStyle(2, 0x3f7ca4);
+    const rowBg = scene.add
+      .rectangle(scene.scale.width / 2, y, scene.scale.width - 58, rowHeight, 0x133046, 0.95)
+      .setStrokeStyle(2, 0x3f7ca4);
     const label = scene.add
       .text(38, y - rowHeight * 0.22, '', {
         fontFamily: FONT_FAMILIES.body,
@@ -50,6 +57,7 @@ export function buildUpgradeListView({ scene, container, upgrades, layout, onBuy
         fontFamily: FONT_FAMILIES.body,
         fontSize: infoFontSize,
         color: '#9dd7ff',
+        wordWrap: { width: infoMaxWidth },
       })
       .setOrigin(0, 0.5);
     const buyButton = scene.add

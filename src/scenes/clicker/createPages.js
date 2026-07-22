@@ -82,9 +82,13 @@ export function createStorePage(scene) {
     })
     .setOrigin(0, 0.5);
 
+  // Center buy modes in the gap between STORE title and the list panel.
+  const titleBottom = scene.storeTitle.y + scene.storeTitle.height / 2;
+  const buyBarY = (titleBottom + panelTopY) / 2;
+
   scene.buyAmountBar = buildBuyAmountBar({
     scene,
-    y: 286,
+    y: buyBarY,
     selected: normalizeBuyAmount(scene.settings.buyAmount),
     onSelect: (amount) => scene.setBuyAmount(amount),
   });

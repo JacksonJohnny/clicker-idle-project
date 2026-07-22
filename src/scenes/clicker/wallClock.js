@@ -30,6 +30,9 @@ export function applyWallClockProgress(scene, options = {}) {
 
   if (autoTaps > 0 && scene.activePage === PAGE.TAP) {
     const autoTapLevel = getAutoTapCursorCount(scene.state);
+    const visibleCursors = Math.min(autoTapLevel, scene.autoTapCursors.maxSlots);
+    // Ensure cursors exist for the wave; ClickerScene.updateOrbit repositions after this.
+    scene.autoTapCursors.sync(visibleCursors);
     scene.autoTapCursors.playClicks(autoTaps, (cursorIndex, tapIndex) => {
       scene.tapButtonVisuals.forEach((object) => object.setScale(0.94));
       scene.tweens.add({

@@ -29,29 +29,49 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
   const pulls = [];
   const maxSlots = getMaxAutoTapCursorSlots();
 
-  function layoutForIndex(index) {
-    let remaining = index;
+  /**
+   * Place cursor `index` among `totalCount` visible cursors.
+   * Partially filled rings spread evenly around the full circle (`countOnRing`),
+   * not clustered into the first N slots of max capacity (that only spans ~3/4).
+   */
+  function layoutForIndex(index, totalCount = cursors.length) {
+    let remainingIndex = Math.max(0, index | 0);
+    let remainingCount = Math.max(0, totalCount | 0);
     let ring = 0;
 
     while (ring < VISUAL_RING_COUNT) {
       const radius = ORBIT_RADIUS + ring * RING_GAP;
       const capacity = ringCapacity(radius);
+      const onThisRing = Math.min(capacity, remainingCount);
 
-      if (remaining < capacity) {
-        return { ring, slot: remaining, capacity, radius };
+      if (remainingIndex < onThisRing) {
+        return {
+          ring,
+          slot: remainingIndex,
+          countOnRing: Math.max(1, onThisRing),
+          capacity,
+          radius,
+        };
       }
 
-      remaining -= capacity;
+      remainingIndex -= onThisRing;
+      remainingCount -= onThisRing;
       ring += 1;
     }
 
     const radius = ORBIT_RADIUS + (VISUAL_RING_COUNT - 1) * RING_GAP;
+    const capacity = ringCapacity(radius);
     return {
       ring: VISUAL_RING_COUNT - 1,
-      slot: remaining,
-      capacity: ringCapacity(radius),
+      slot: remainingIndex,
+      countOnRing: Math.max(1, capacity),
+      capacity,
       radius,
     };
+  }
+
+  function angleForLayout(layout, spin = 0) {
+    return spin * 0.7 + (layout.slot / layout.countOnRing) * Math.PI * 2;
   }
 
   function createCursor() {
@@ -92,9 +112,9 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
 
     const spin = timeMs / 1000;
     cursors.forEach((cursor, index) => {
-      const { slot, capacity, radius: ringRadius } = layoutForIndex(index);
-      const angle = spin * 0.7 + (slot / capacity) * Math.PI * 2;
-      const radius = ringRadius - (pulls[index]?.amount ?? 0);
+      const layout = layoutForIndex(index, count);
+      const angle = angleForLayout(layout, spin);
+      const radius = layout.radius - (pulls[index]?.amount ?? 0);
       cursor.setVisible(true);
       cursor.setTint(getAutoTapCursorTint(safeLevel, index, maxSlots));
       cursor.x = centerX + Math.cos(angle) * radius;
@@ -103,17 +123,16 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
     });
   }
 
-  // Stable clockwise order by angle (inner before outer at the same angle).
-  // Avoids ring-fill index order, which finishes the whole inner ring before the outer
-  // and wraps mid-wave when nextClickIndex continues across intervals.
+  // Clockwise within each ring (inner → outer). Slot order matches even spacing,
+  // so each ring gets a full 360° sweep — not a clustered ~3/4 arc.
   function getClockwiseOrder() {
+    const count = cursors.length;
     return cursors
       .map((_, index) => {
-        const { slot, capacity, ring } = layoutForIndex(index);
-        const angle = (slot / capacity) * Math.PI * 2;
-        return { index, angle, ring };
+        const layout = layoutForIndex(index, count);
+        return { index, ring: layout.ring, slot: layout.slot };
       })
-      .sort((a, b) => a.angle - b.angle || a.ring - b.ring)
+      .sort((a, b) => a.ring - b.ring || a.slot - b.slot)
       .map((entry) => entry.index);
   }
 
@@ -125,24 +144,32 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
 
     const total = Math.max(1, tapCount | 0);
     const order = getClockwiseOrder();
+    if (order.length === 0) {
+      return;
+    }
 
     for (let i = 0; i < total; i += 1) {
-      // Always start from the same angular position each wave.
       const index = order[i % order.length];
-      const pull = pulls[index];
       const delay = i * 110;
-      scene.tweens.killTweensOf(pull);
-      pull.amount = 0;
-      scene.tweens.add({
-        targets: pull,
-        amount: CLICK_PULL,
-        duration: 85,
-        yoyo: true,
-        ease: 'Quad.Out',
-        delay,
-        onStart: () => {
-          onEachClick?.(index, i);
-        },
+      // Defer start so later schedules don't kill earlier jabs on the same cursor.
+      scene.time.delayedCall(delay, () => {
+        const pull = pulls[index];
+        const cursor = cursors[index];
+        if (!pull || !cursor || !cursor.active) {
+          return;
+        }
+        scene.tweens.killTweensOf(pull);
+        pull.amount = 0;
+        scene.tweens.add({
+          targets: pull,
+          amount: CLICK_PULL,
+          duration: 85,
+          yoyo: true,
+          ease: 'Quad.Out',
+          onStart: () => {
+            onEachClick?.(index, i);
+          },
+        });
       });
     }
   }

@@ -381,11 +381,14 @@ export class ClickerScene extends Phaser.Scene {
   }
 
   update() {
+    const onTapPage = this.gameStarted && this.activePage === PAGE.TAP;
+    this.autoTapCursors.layer.setVisible(onTapPage);
+
+    // Tick / auto-tap waves first (may sync cursor count for playClicks).
     this.applyWallClockProgress();
 
-    const onTapPage = this.gameStarted && this.activePage === PAGE.TAP;
+    // Always reposition last so orbit layout matches the final cursor count.
     const cursorCount = onTapPage ? getAutoTapCursorCount(this.state) : 0;
-    this.autoTapCursors.layer.setVisible(onTapPage);
     this.autoTapCursors.updateOrbit(cursorCount, this.time.now);
   }
 
