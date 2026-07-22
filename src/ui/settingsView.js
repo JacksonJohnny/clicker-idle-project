@@ -30,7 +30,6 @@ export function buildSettingsView({ scene, container, onToggle }) {
     .setOrigin(0, 0.5);
   const items = [
     createToggle(scene, UI_TEXT.sound, UI_TEXT.soundDescription, 'soundEnabled', 340, onToggle),
-    createToggle(scene, UI_TEXT.vibration, UI_TEXT.vibrationDescription, 'vibrationEnabled', 438, onToggle),
   ];
   const objects = [title];
   items.forEach((item) => objects.push(item.background, item.label, item.description, item.toggle, item.valueText, item.hitArea));

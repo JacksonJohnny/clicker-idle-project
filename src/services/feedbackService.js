@@ -25,10 +25,6 @@ export function createFeedbackService(scene, settings) {
         oscillator.stop(now + 0.12);
       }
     }
-
-    if (settings.vibrationEnabled && navigator.vibrate) {
-      navigator.vibrate(12);
-    }
   }
 
   function spawnFloatingText(text, color = '#ffffff', y = 355, xOffset = 0) {
@@ -42,7 +38,7 @@ export function createFeedbackService(scene, settings) {
       .setOrigin(0.5);
 
     scene.upgradeCamera?.ignore(floatText);
-    scene.boostCamera?.ignore(floatText);
+    scene.metaCamera?.ignore(floatText);
     scene.tweens.add({
       targets: floatText,
       y: y - 70,

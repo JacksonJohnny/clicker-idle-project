@@ -74,14 +74,14 @@ describe('clickerMath', () => {
     const controller = createController();
     controller.hydrate({
       coins: '100000',
-      upgrades: [{ id: 'upgrade-1', level: 1 }],
+      upgrades: [{ id: 'upgrade-1', level: 5 }],
     });
 
-    expect(controller.state.perSecond.toString()).toBe('1');
+    expect(controller.state.perSecond.toString()).toBe('5');
     expect(getGeneratorEfficiencyStarCount(controller.state, 'upgrade-1')).toBe(0);
     expect(controller.tryBuyMetaUpgrade('upgrade-1-efficiency-1')).toMatchObject({ ok: true });
     // ×2 efficiency +1% achievement (Tuned Up)
-    expect(controller.state.perSecond.toString()).toBe('2.02');
+    expect(controller.state.perSecond.toString()).toBe('10.1');
     expect(getGeneratorEfficiencyStarCount(controller.state, 'upgrade-1')).toBe(1);
   });
 
@@ -94,7 +94,7 @@ describe('clickerMath', () => {
     });
 
     expect(controller.tryBuyMetaUpgrade('global-production-1')).toMatchObject({ ok: true });
-    // 25*4*1.05=105; achievements +4% (taps100, own10, efficiency, coins1m) → 109.2
+    // 25×4 efficiency ×1.05 global ×1.04 achievements = 109.2
     expect(controller.state.perSecond.toString()).toBe('109.2');
 
     expect(controller.tryBuyMetaUpgrade('click-per-second-tap-1')).toMatchObject({ ok: true });
@@ -147,8 +147,10 @@ describe('clickerMath', () => {
     const kinds = new Set(META_UPGRADES.map((item) => item.kind));
     expect(kinds).toEqual(new Set(['generator', 'global', 'click_per_second', 'base_multiplier']));
     expect(META_UPGRADES.filter((item) => item.kind === 'base_multiplier').length).toBe(20);
-    expect(CLICKER_GENERATORS).toHaveLength(10);
-    expect(META_UPGRADES.length).toBe(80);
+    expect(CLICKER_GENERATORS).toHaveLength(20);
+    expect(META_UPGRADES.length).toBe(130);
+    expect(META_UPGRADES.filter((item) => item.kind === 'generator').length).toBe(100);
+    expect(META_UPGRADES.some((item) => item.id === 'upgrade-20-efficiency-1')).toBe(true);
   });
 
   it('applies base multiplier upgrades as multiplicative production boosts', () => {
@@ -162,6 +164,36 @@ describe('clickerMath', () => {
     expect(controller.state.perSecond.toString()).toBe('1');
     expect(controller.tryBuyMetaUpgrade('base-multiplier-1')).toMatchObject({ ok: true });
     expect(controller.state.perSecond.toString()).toBe('1.01');
+  });
+
+  it('buys bulk upgrade amounts and respects MAX', () => {
+    const controller = createController();
+    controller.hydrate({
+      coins: '100000',
+      upgrades: [{ id: 'upgrade-1', level: 0 }],
+    });
+
+    const preview10 = controller.getUpgradeBuyPreview('upgrade-1', 10);
+    expect(preview10.amount).toBe(10);
+    expect(controller.tryBuyUpgrade('upgrade-1', 10)).toMatchObject({ ok: true, amount: 10 });
+    expect(controller.state.upgrades.find((item) => item.id === 'upgrade-1')?.level).toBe(10);
+
+    // Unnormalized string inputs should still resolve via normalizeBuyAmount.
+    controller.hydrate({
+      coins: '100000',
+      upgrades: [{ id: 'upgrade-1', level: 0 }],
+    });
+    expect(controller.getUpgradeBuyPreview('upgrade-1', '25').amount).toBe(25);
+    expect(controller.tryBuyUpgrade('upgrade-1', '10')).toMatchObject({ ok: true, amount: 10 });
+
+    controller.hydrate({
+      coins: '500',
+      upgrades: [{ id: 'upgrade-1', level: 0 }],
+    });
+    const maxPreview = controller.getUpgradeBuyPreview('upgrade-1', 'max');
+    expect(maxPreview.amount).toBeGreaterThan(0);
+    expect(controller.tryBuyUpgrade('upgrade-1', 'max')).toMatchObject({ ok: true });
+    expect(controller.state.upgrades.find((item) => item.id === 'upgrade-1')?.level).toBe(maxPreview.amount);
   });
 
   it('prestiges for Ascension Tokens and keeps permanent bonus', () => {

@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js';
 import { AUTO_TAP_INTERVAL_SECONDS } from '../data/upgrades.js';
 import { ACHIEVEMENTS, getAchievementIdleMultiplier } from '../data/achievements.js';
+import { normalizeBuyAmount } from '../config/buyAmounts.js';
 import { calculateAscensionTokenGain, getAscensionTokenIdleMultiplier } from './prestige.js';
 import {
   BOOST_ID_ALIASES,
@@ -146,6 +147,61 @@ function calculateUpgradeCost(upgrade) {
   return baseCost.times(growth.pow(upgrade.level)).floor();
 }
 
+/** Total cost to buy `amount` levels starting from current level (geometric series). */
+export function calculateBulkUpgradeCost(upgrade, amount) {
+  const levels = Math.max(0, Math.floor(Number(amount) || 0));
+  if (levels <= 0) {
+    return new Decimal(0);
+  }
+
+  const growth = toDecimal(upgrade.growth);
+  const first = toDecimal(upgrade.baseCost).times(growth.pow(upgrade.level));
+
+  if (growth.eq(1)) {
+    return first.times(levels).floor();
+  }
+
+  return first.times(growth.pow(levels).minus(1)).div(growth.minus(1)).floor();
+}
+
+/** How many levels can be bought with current coins for this upgrade. */
+export function getMaxAffordableUpgradeAmount(state, upgrade) {
+  if (!upgrade || !isUpgradeUnlocked(upgrade, state.upgrades)) {
+    return 0;
+  }
+
+  const coins = toDecimal(state.coins);
+  if (coins.lte(0)) {
+    return 0;
+  }
+
+  let low = 0;
+  let high = 1;
+  while (high < 1e9 && calculateBulkUpgradeCost(upgrade, high).lte(coins)) {
+    low = high;
+    high *= 2;
+  }
+
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2);
+    if (calculateBulkUpgradeCost(upgrade, mid).lte(coins)) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return low;
+}
+
+export function resolveBuyAmount(state, upgrade, buyAmount) {
+  const normalized = normalizeBuyAmount(buyAmount);
+  if (normalized === 'max') {
+    return getMaxAffordableUpgradeAmount(state, upgrade);
+  }
+  return normalized;
+}
+
 function cloneUpgrades(upgrades) {
   return upgrades.map((upgrade) => ({ ...upgrade, level: 0 }));
 }
@@ -248,8 +304,10 @@ function calculateStats(state) {
     .filter((boost) => boost.kind === 'click_per_second')
     .reduce((sum, boost) => sum.plus(toDecimal(boost.clickPerSecondShare ?? 0)), new Decimal(0));
 
+  const perClick = new Decimal(1).plus(clickExtra).plus(perSecond.times(clickPerSecondShare));
+
   return {
-    perClick: new Decimal(1).plus(clickExtra).plus(perSecond.times(clickPerSecondShare)),
+    perClick,
     perSecond,
     productionMultiplier,
     metaMultiplier,
@@ -418,7 +476,7 @@ function mergeStateFromSave(state, loaded) {
   return state;
 }
 
-function buyUpgrade(state, upgradeId) {
+function buyUpgrade(state, upgradeId, buyAmount = 1) {
   const upgrade = state.upgrades.find((item) => item.id === upgradeId);
 
   if (!upgrade) {
@@ -429,19 +487,24 @@ function buyUpgrade(state, upgradeId) {
     return { ok: false, reason: 'locked' };
   }
 
-  const cost = calculateUpgradeCost(upgrade);
+  const amount = resolveBuyAmount(state, upgrade, buyAmount);
+  if (amount <= 0) {
+    return { ok: false, reason: 'insufficient-coins', cost: calculateUpgradeCost(upgrade), amount: 0 };
+  }
 
+  const cost = calculateBulkUpgradeCost(upgrade, amount);
   if (state.coins.lt(cost)) {
-    return { ok: false, reason: 'insufficient-coins', cost };
+    return { ok: false, reason: 'insufficient-coins', cost, amount };
   }
 
   state.coins = state.coins.minus(cost);
-  upgrade.level += 1;
+  upgrade.level += amount;
   recalculateState(state);
 
   return {
     ok: true,
     cost,
+    amount,
   };
 }
 
@@ -456,7 +519,7 @@ function buyMetaUpgrade(state, boostId) {
     return { ok: false, reason: 'locked' };
   }
 
-  const cost = toDecimal(boost.cost);
+  const cost = toDecimal(boost.cost).floor();
   if (state.coins.lt(cost)) {
     return { ok: false, reason: 'insufficient-coins', cost };
   }
@@ -630,8 +693,8 @@ export function createClickerController(upgrades, boosts = []) {
       syncAchievements(state);
       return income.plus(autoTaps.gain);
     },
-    tryBuyUpgrade(upgradeId) {
-      const result = buyUpgrade(state, upgradeId);
+    tryBuyUpgrade(upgradeId, buyAmount = 1) {
+      const result = buyUpgrade(state, upgradeId, buyAmount);
       if (result.ok) {
         syncAchievements(state);
       }
@@ -666,9 +729,29 @@ export function createClickerController(upgrades, boosts = []) {
         prestigeCount: state.prestigeCount | 0,
       };
     },
-    getUpgradeCost(upgradeId) {
+    getUpgradeCost(upgradeId, buyAmount = 1) {
       const upgrade = state.upgrades.find((item) => item.id === upgradeId);
-      return upgrade ? calculateUpgradeCost(upgrade) : null;
+      if (!upgrade) {
+        return null;
+      }
+      const amount = resolveBuyAmount(state, upgrade, buyAmount);
+      if (amount <= 0) {
+        return calculateUpgradeCost(upgrade);
+      }
+      return calculateBulkUpgradeCost(upgrade, amount);
+    },
+    getUpgradeBuyPreview(upgradeId, buyAmount = 1) {
+      const upgrade = state.upgrades.find((item) => item.id === upgradeId);
+      if (!upgrade) {
+        return null;
+      }
+      const amount = resolveBuyAmount(state, upgrade, buyAmount);
+      const cost = amount > 0 ? calculateBulkUpgradeCost(upgrade, amount) : calculateUpgradeCost(upgrade);
+      return {
+        amount,
+        cost,
+        canBuy: amount > 0 && state.coins.gte(cost),
+      };
     },
     snapshot() {
       return serializeState(state);

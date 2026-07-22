@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { LOOP_CONFIG, SCENE_KEY } from '../config/gameConfig.js';
 import { COLORS, FONT_FAMILIES, UI_LAYOUT } from '../config/theme.js';
 import { UI_TEXT } from '../config/uiText.js';
-import { ListScrollController } from '../controllers/ListScrollController.js';
 import { META_UPGRADES } from '../data/metaUpgrades.js';
 import { CLICKER_GENERATORS } from '../data/generators.js';
 import { CLICK_UPGRADES } from '../data/upgrades.js';
@@ -10,12 +9,7 @@ import { createClickerController, formatCoins, getAutoTapCursorCount } from '../
 import { createFeedbackService } from '../services/feedbackService.js';
 import { loadGameState, saveGameState } from '../services/saveStorage.js';
 import { loadSettings, saveSettings } from '../services/settingsStorage.js';
-import { buildBoostsView } from '../ui/boostsView.js';
-import { buildBottomNavigation } from '../ui/bottomNavigation.js';
-import { buildSettingsButton, buildSettingsView } from '../ui/settingsView.js';
-import { buildUpgradeListView } from '../ui/upgradeListView.js';
-import { buildStatusView } from '../ui/statusView.js';
-import { buildPrestigeView } from '../ui/prestigeView.js';
+import { getNavHeight } from '../ui/bottomNavigation.js';
 import { createAutoTapCursorLayer } from '../ui/autoTapCursors.js';
 import { getMetaUpgradeEffectText } from '../ui/metaUpgradeCopy.js';
 import handCursorUrl from '../assets/hand-cursor.png';
@@ -25,14 +19,16 @@ import {
   showPrestigeConfirm,
   showStartOverlay as showStartOverlayUI,
 } from './clicker/overlays.js';
-import { createHoldBuyController } from './clicker/holdBuy.js';
 import {
   applyWallClockProgress as applyWallClockProgressHelper,
   bindLifecyclePersistence,
   flushProgressAndSave as flushProgressAndSaveHelper,
 } from './clicker/wallClock.js';
-import { renderStoreRows, updateMetaListLayout, updateStoreListLayout } from './clicker/listRender.js';
-import { setupListViewportCameras } from './clicker/viewportCameras.js';
+import {
+  renderStoreRows,
+  updateMetaListLayout as refreshMetaListLayout,
+  updateStoreListLayout,
+} from './clicker/listRender.js';
 import {
   beginPageSwipe as beginPageSwipeHelper,
   setActivePage as setActivePageHelper,
@@ -40,6 +36,15 @@ import {
   PAGE,
   SETTINGS_PAGE,
 } from './clicker/pageNavigation.js';
+import { normalizeBuyAmount } from '../config/buyAmounts.js';
+import {
+  createMetaUpgradePage,
+  createPrestigePage,
+  createSettingsChrome,
+  createStatusPage,
+  createStorePage,
+  setupListInteraction,
+} from './clicker/createPages.js';
 
 export class ClickerScene extends Phaser.Scene {
   constructor() {
@@ -67,7 +72,7 @@ export class ClickerScene extends Phaser.Scene {
     const height = this.scale.height;
 
     this.activePage = PAGE.TAP;
-    this.navHeight = UI_LAYOUT.navHeight;
+    this.navHeight = getNavHeight();
     this.navTop = height - this.navHeight;
     this.tapCenterY = UI_LAYOUT.tapCenterY;
     this.gamePage = this.add.container(0, 0);
@@ -146,210 +151,12 @@ export class ClickerScene extends Phaser.Scene {
       this.renderState();
     });
 
-    const compactRows = this.state.upgrades.length > 4;
-    const rowHeight = compactRows ? 72 : 84;
-    const rowGap = compactRows ? 12 : 16;
-    const panelPadding = 12;
-    const panelTop = 294;
-    const panelBottomMargin = this.navHeight + 14;
-    const maxPanelHeight = height - panelTop - panelBottomMargin;
-    const listHeight = this.state.upgrades.length * rowHeight + (this.state.upgrades.length - 1) * rowGap;
-    const minPanelHeight = rowHeight + panelPadding * 2;
-    const panelHeight = Math.max(minPanelHeight, Math.min(listHeight + panelPadding * 2, maxPanelHeight));
-    const panelCenterY = height - panelBottomMargin - panelHeight / 2;
-    const panelTopY = panelCenterY - panelHeight / 2;
-    const panelBottomY = panelCenterY + panelHeight / 2;
-    const listLeft = 24;
-    const listWidth = width - 56;
-    const listTop = panelTopY + panelPadding;
-    const listBottom = panelBottomY - panelPadding;
-    const visibleListHeight = listBottom - listTop;
-
-    this.upgradeLayout = {
-      rowHeight,
-      rowGap,
-      panelCenterY,
-      compactRows,
-      panelTopY,
-      panelBottomY,
-      listLeft,
-      listWidth,
-      listTop,
-      listBottom,
-      visibleListHeight,
-      listHeight,
-    };
-
-    this.storeTitle = this.add
-      .text(28, UI_LAYOUT.sectionTitleY, UI_TEXT.storeTitle, {
-        fontFamily: FONT_FAMILIES.display,
-        fontSize: '24px',
-        color: COLORS.accentText,
-      })
-      .setOrigin(0, 0.5);
-
-    this.upgradePanelBg = this.add.rectangle(width / 2, panelCenterY, width - 34, panelHeight, COLORS.storePanel, 0.86).setStrokeStyle(2, COLORS.storePanelBorder);
-
-    this.upgradeContent = this.add.container(0, 0);
-
-    this.upgradeItems = buildUpgradeListView({
-      scene: this,
-      container: this.upgradeContent,
-      upgrades: this.state.upgrades,
-      layout: this.upgradeLayout,
-      onPointerDown: (upgrade, pointer) => this.startUpgradePurchase(upgrade, pointer),
-      onPointerUp: (upgrade, pointer, moved) => this.finishUpgradePurchase(upgrade, pointer, moved),
-    });
-
-    const boostRowHeight = 98;
-    const boostRowGap = 16;
-    const boostPanelPadding = 12;
-    const boostPanelTop = 294;
-    const boostPanelBottomMargin = this.navHeight + 14;
-    const boostMaxPanelHeight = height - boostPanelTop - boostPanelBottomMargin;
-    const boostPanelHeight = boostMaxPanelHeight;
-    const boostPanelCenterY = height - boostPanelBottomMargin - boostPanelHeight / 2;
-    const boostPanelTopY = boostPanelCenterY - boostPanelHeight / 2;
-    const boostPanelBottomY = boostPanelCenterY + boostPanelHeight / 2;
-    const boostListTop = boostPanelTopY + boostPanelPadding;
-    const boostListBottom = boostPanelBottomY - boostPanelPadding;
-
-    this.boostLayout = {
-      rowHeight: boostRowHeight,
-      rowGap: boostRowGap,
-      panelCenterY: boostPanelCenterY,
-      panelTopY: boostPanelTopY,
-      panelBottomY: boostPanelBottomY,
-      listLeft: 24,
-      listWidth: width - 56,
-      listTop: boostListTop,
-      listBottom: boostListBottom,
-      visibleListHeight: boostListBottom - boostListTop,
-      listHeight: 0,
-    };
-
-    this.metaUpgradesTitle = this.add
-      .text(28, UI_LAYOUT.sectionTitleY, UI_TEXT.metaUpgradesTitle, {
-        fontFamily: FONT_FAMILIES.display,
-        fontSize: '24px',
-        color: COLORS.accentText,
-      })
-      .setOrigin(0, 0.5);
-    this.boostPanelBg = this.add
-      .rectangle(width / 2, boostPanelCenterY, width - 34, boostPanelHeight, COLORS.storePanel, 0.86)
-      .setStrokeStyle(2, COLORS.storePanelBorder);
-    this.boostEmptyText = this.add
-      .text(width / 2, boostPanelCenterY, UI_TEXT.unlockHint, {
-        fontFamily: FONT_FAMILIES.body,
-        fontSize: '20px',
-        color: COLORS.mutedText,
-      })
-      .setOrigin(0.5)
-      .setVisible(false);
-    this.boostContent = this.add.container(0, 0);
-    this.boostItems = buildBoostsView({
-      scene: this,
-      container: this.boostContent,
-      boosts: this.state.boosts,
-      layout: this.boostLayout,
-      onPointerDown: (pointer) => this.beginPageSwipe(pointer),
-      onBuy: (boost) => this.buyMetaUpgrade(boost),
-    });
-
-    this.statusPage = this.add.container(0, 0).setVisible(false);
-    const statusPanelTop = 294;
-    const statusPanelBottomMargin = this.navHeight + 14;
-    const statusPanelHeight = height - statusPanelTop - statusPanelBottomMargin;
-    const statusPanelCenterY = height - statusPanelBottomMargin - statusPanelHeight / 2;
-    const statusPanelTopY = statusPanelCenterY - statusPanelHeight / 2;
-    const statusPanelBottomY = statusPanelCenterY + statusPanelHeight / 2;
-    const statusListTop = statusPanelTopY + 12;
-    const statusListBottom = statusPanelBottomY - 12;
-
-    this.statusLayout = {
-      rowHeight: 28,
-      rowGap: 0,
-      panelCenterY: statusPanelCenterY,
-      panelTopY: statusPanelTopY,
-      panelBottomY: statusPanelBottomY,
-      listLeft: 24,
-      listWidth: width - 56,
-      listTop: statusListTop,
-      listBottom: statusListBottom,
-      visibleListHeight: statusListBottom - statusListTop,
-      listHeight: 0,
-    };
-
-    this.statusPanelBg = this.add
-      .rectangle(width / 2, statusPanelCenterY, width - 34, statusPanelHeight, COLORS.storePanel, 0.86)
-      .setStrokeStyle(2, COLORS.storePanelBorder)
-      .setVisible(false);
-    this.statusContent = this.add.container(0, 0);
-    this.statusView = buildStatusView({
-      scene: this,
-      content: this.statusContent,
-      listTop: statusListTop,
-    });
-    this.statusPage.add(this.statusView.title);
-
-    this.prestigePage = this.add.container(0, 0).setVisible(false);
-    this.prestigeView = buildPrestigeView({
-      scene: this,
-      container: this.prestigePage,
-      onRequestPrestige: () => this.requestPrestige(),
-    });
-
-    this.settingItems = buildSettingsView({ scene: this, container: this.settingsPage, onToggle: (settingKey) => this.toggleSetting(settingKey) });
-    const settingsButton = buildSettingsButton(this, () => this.toggleSettingsPage());
-    this.settingsButtonBackground = settingsButton.background;
-    this.settingsButtonIcon = settingsButton.icon;
-    this.navTabs = buildBottomNavigation({ scene: this, navTop: this.navTop, navHeight: this.navHeight, onSelect: (index) => this.selectPage(index) });
-    setupListViewportCameras(this, [
-      { key: 'upgradeCamera', content: this.upgradeContent, layout: this.upgradeLayout },
-      { key: 'boostCamera', content: this.boostContent, layout: this.boostLayout },
-      { key: 'statusCamera', content: this.statusContent, layout: this.statusLayout },
-    ]);
-    this.statusCamera.setVisible(false);
-
-    this.holdBuy = createHoldBuyController(this);
-    this.upgradeScroll = new ListScrollController({
-      scene: this,
-      layout: this.upgradeLayout,
-      items: this.upgradeItems,
-      isEnabled: () => this.gameStarted && this.activePage === PAGE.STORE,
-      onPointerMove: (pointer) => this.holdBuy.cancelUpgradeHoldOnMove(pointer),
-      onPointerUp: (pointer) => this.holdBuy.stopUpgradeHold(pointer.id),
-    });
-    this.upgradeScroll.setup();
-    this.boostScroll = new ListScrollController({
-      scene: this,
-      layout: this.boostLayout,
-      items: this.boostItems,
-      isEnabled: () => this.gameStarted && this.activePage === PAGE.UPGRADE,
-      syncItem: (item, y) => {
-        item.background.y = y;
-        item.name.y = y - 22;
-        item.condition.y = y + 8;
-        item.effect.y = y + 30;
-        item.buyButton.y = y;
-        item.buyText.y = y;
-      },
-    });
-    this.boostScroll.setup();
-    this.statusScroll = new ListScrollController({
-      scene: this,
-      layout: this.statusLayout,
-      items: this.statusView.items,
-      isEnabled: () => this.gameStarted && this.activePage === PAGE.STATUS,
-      syncItem: (item, y) => {
-        const yy = y + (item.offsetY ?? 0);
-        (item.nodes ?? [item.node]).forEach((node) => {
-          node.y = yy;
-        });
-      },
-    });
-    this.statusScroll.setup();
-    this.statusScroll.setVisible(false);
+    createStorePage(this);
+    createMetaUpgradePage(this);
+    createStatusPage(this);
+    createPrestigePage(this);
+    createSettingsChrome(this);
+    setupListInteraction(this);
     setupPageSwipe(this);
     this.setActivePage(PAGE.TAP);
     this.lastProgressAtMs = Date.now();
@@ -367,7 +174,6 @@ export class ClickerScene extends Phaser.Scene {
     });
 
     this.input.on('gameout', () => {
-      this.holdBuy.stopUpgradeHold();
       this.flushProgressAndSave();
     });
 
@@ -394,32 +200,33 @@ export class ClickerScene extends Phaser.Scene {
     });
   }
 
-  startUpgradePurchase(upgrade, pointer) {
-    this.holdBuy.startUpgradeHold(upgrade.id, pointer);
-    this.beginPageSwipe(pointer);
+  setBuyAmount(amount) {
+    this.settings.buyAmount = normalizeBuyAmount(amount);
+    saveSettings(this.settings);
+    this.buyAmountBar?.refresh(this.settings.buyAmount);
+    this.renderState();
   }
 
-  finishUpgradePurchase(upgrade, pointer, moved) {
-    const boughtWhileHeld = this.holdBuy.stopUpgradeHold(pointer.id);
-    if (!this.gameStarted || moved || boughtWhileHeld || this.activePage !== PAGE.STORE) {
+  buyStoreUpgrade(upgrade) {
+    if (!this.gameStarted || this.activePage !== PAGE.STORE) {
       return;
     }
-    this.tryBuyUpgrade(upgrade.id);
+    this.tryBuyUpgrade(upgrade.id, this.settings.buyAmount);
   }
 
-  buyMetaUpgrade(boost) {
+  buyMetaUpgrade(meta) {
     if (!this.gameStarted || this.activePage !== PAGE.UPGRADE) {
       return;
     }
 
-    const result = this.engine.tryBuyMetaUpgrade(boost.id);
+    const result = this.engine.tryBuyMetaUpgrade(meta.id);
     if (!result.ok) {
       this.cameras.main.shake(120, 0.004);
       return;
     }
 
     this.feedback.playPurchase();
-    this.feedback.spawnFloatingText(getMetaUpgradeEffectText(boost), COLORS.positiveText, 520);
+    this.feedback.spawnFloatingText(getMetaUpgradeEffectText(meta), COLORS.positiveText, 520);
     this.renderState();
     this.persist();
   }
@@ -455,12 +262,12 @@ export class ClickerScene extends Phaser.Scene {
     this.persist();
   }
 
-  tryBuyUpgrade(upgradeId, options = {}) {
+  tryBuyUpgrade(upgradeId, buyAmount = 1, options = {}) {
     if (!this.gameStarted) {
       return false;
     }
 
-    const result = this.engine.tryBuyUpgrade(upgradeId);
+    const result = this.engine.tryBuyUpgrade(upgradeId, buyAmount);
 
     if (!result.ok) {
       if (options.shakeOnFailure !== false) {
@@ -485,7 +292,7 @@ export class ClickerScene extends Phaser.Scene {
   }
 
   toggleSettingsPage() {
-    if (!this.gameStarted) {
+    if (!this.gameStarted || this.offlineReturn || this.confirmDialog) {
       return;
     }
 
@@ -499,6 +306,9 @@ export class ClickerScene extends Phaser.Scene {
   }
 
   selectPage(index) {
+    if (this.offlineReturn || this.confirmDialog) {
+      return;
+    }
     if (this.activePage === SETTINGS_PAGE && index !== SETTINGS_PAGE) {
       this.previousMainPage = index;
     }
@@ -556,7 +366,7 @@ export class ClickerScene extends Phaser.Scene {
     this.renderSettings();
     updateStoreListLayout(this);
     renderStoreRows(this);
-    updateMetaListLayout(this);
+    refreshMetaListLayout(this);
     if (this.activePage === PAGE.STATUS) {
       this.refreshStatusList();
     }
@@ -565,12 +375,8 @@ export class ClickerScene extends Phaser.Scene {
     }
   }
 
-  updateBoostListLayout() {
-    updateMetaListLayout(this);
-  }
-
-  updateUpgradeListLayout() {
-    updateStoreListLayout(this);
+  updateMetaListLayout() {
+    refreshMetaListLayout(this);
   }
 
   update() {

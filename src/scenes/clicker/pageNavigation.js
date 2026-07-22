@@ -32,7 +32,7 @@ export function setupPageSwipe(scene) {
       scene.activePage === PAGE.STORE
         ? scene.upgradeScroll
         : scene.activePage === PAGE.UPGRADE
-          ? scene.boostScroll
+          ? scene.metaScroll
           : scene.activePage === PAGE.STATUS
             ? scene.statusScroll
             : null;
@@ -65,9 +65,20 @@ export function beginPageSwipe(scene, pointer) {
 }
 
 export function setActivePage(scene, index) {
-  scene.holdBuy.stopUpgradeHold();
+  // Keep list cameras hidden while a full-screen modal owns the view.
+  if (scene.offlineReturn || scene.confirmDialog) {
+    scene.activePage = Math.min(SETTINGS_PAGE, Math.max(0, index));
+    scene.upgradeCamera?.setVisible(false);
+    scene.metaCamera?.setVisible(false);
+    scene.statusCamera?.setVisible(false);
+    scene.upgradeScroll?.setVisible(false);
+    scene.metaScroll?.setVisible(false);
+    scene.statusScroll?.setVisible(false);
+    return;
+  }
+
   scene.activePage = Math.min(SETTINGS_PAGE, Math.max(0, index));
-  const showBoosts = scene.activePage === PAGE.UPGRADE;
+  const showMeta = scene.activePage === PAGE.UPGRADE;
   const showStore = scene.activePage === PAGE.STORE;
   const showGame = scene.activePage === PAGE.TAP;
   const showStatus = scene.activePage === PAGE.STATUS;
@@ -76,13 +87,14 @@ export function setActivePage(scene, index) {
 
   scene.gamePage.setVisible(showGame);
   scene.storeTitle.setVisible(showStore);
+  scene.buyAmountBar?.setVisible(showStore);
   scene.upgradePanelBg.setVisible(showStore);
   scene.upgradeCamera.setVisible(scene.gameStarted && showStore);
   scene.upgradeScroll.setVisible(showStore);
-  scene.metaUpgradesTitle.setVisible(showBoosts);
-  scene.boostPanelBg.setVisible(showBoosts);
-  scene.boostCamera.setVisible(scene.gameStarted && showBoosts);
-  scene.boostScroll.setVisible(showBoosts);
+  scene.metaUpgradesTitle.setVisible(showMeta);
+  scene.metaPanelBg.setVisible(showMeta);
+  scene.metaCamera.setVisible(scene.gameStarted && showMeta);
+  scene.metaScroll.setVisible(showMeta);
   scene.statusPage?.setVisible(showStatus);
   scene.statusPanelBg?.setVisible(showStatus);
   scene.statusCamera?.setVisible(scene.gameStarted && showStatus);
@@ -90,10 +102,10 @@ export function setActivePage(scene, index) {
   scene.prestigePage?.setVisible(showPrestige);
   scene.settingsPage.setVisible(showSettings);
 
-  if (showBoosts) {
-    scene.updateBoostListLayout();
+  if (showMeta) {
+    scene.updateMetaListLayout();
   } else {
-    scene.boostEmptyText.setVisible(false);
+    scene.metaEmptyText.setVisible(false);
   }
 
   if (showStatus) {
@@ -111,8 +123,14 @@ export function setActivePage(scene, index) {
   );
   scene.settingsButtonIcon.setColor(showSettings ? COLORS.accentActiveText : COLORS.accentText);
 
-  scene.navTabs.forEach((tab, tabIndex) => {
-    const active = tabIndex === scene.activePage;
+  scene.navTabs.forEach((tab) => {
+    if (tab.isOverflow) {
+      const inOverflow = scene.activePage >= (tab.hiddenStart ?? 0);
+      tab.indicator.setVisible(inOverflow && scene.activePage !== SETTINGS_PAGE);
+      tab.text.setColor(inOverflow ? COLORS.activeText : COLORS.inactiveText);
+      return;
+    }
+    const active = tab.index === scene.activePage;
     tab.indicator.setVisible(active);
     tab.text.setColor(active ? COLORS.activeText : COLORS.inactiveText);
   });

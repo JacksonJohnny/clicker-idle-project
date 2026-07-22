@@ -36,8 +36,3 @@ export function purgeGameStorageKeys() {
   const keys = [SAVE_KEY, `${SAVE_KEY}${SETTINGS_SUFFIX}`, ...LEGACY_SAVE_KEYS];
   keys.forEach((key) => storageRemoveItem(key));
 }
-
-/** No-op on web; kept so boot stays awaitable. */
-export async function hydrateNativePreferences() {
-  // Intentionally empty — web uses localStorage only.
-}

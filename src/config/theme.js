@@ -12,7 +12,6 @@ export const COLORS = {
   titleStroke: '#9f5f00',
   whiteText: '#ffffff',
   statsText: '#9bd3ff',
-  hintText: '#c9d6df',
   positiveText: '#9df4a3',
   coreGlow: 0xffc04d,
   coreRing: 0xffb000,

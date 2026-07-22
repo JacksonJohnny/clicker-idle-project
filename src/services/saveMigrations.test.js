@@ -31,7 +31,7 @@ describe('saveMigrations', () => {
       1,
     );
 
-    expect(version).toBe(8);
+    expect(version).toBe(10);
     expect(state.coins).toBe(99);
     expect(state.upgrades[0].level).toBe(2);
   });
@@ -73,7 +73,7 @@ describe('saveMigrations', () => {
       2,
     );
 
-    expect(version).toBe(8);
+    expect(version).toBe(10);
     expect(state.boosts).toEqual(
       expect.arrayContaining([
         { id: 'upgrade-2-efficiency-1', purchased: true },
@@ -94,7 +94,7 @@ describe('saveMigrations', () => {
       7,
     );
 
-    expect(version).toBe(8);
+    expect(version).toBe(10);
     expect(state.ascensionTokens).toBe(12);
     expect(state.stars).toBeUndefined();
   });
@@ -135,7 +135,7 @@ describe('saveMigrations', () => {
       6,
     );
 
-    expect(version).toBe(8);
+    expect(version).toBe(10);
     expect(state.coins).toBe('500000');
     expect(state.totalCoinsEarned).toBe('900000');
     expect(state.coinsThisAscension).toBe('900000');
@@ -156,5 +156,22 @@ describe('saveMigrations', () => {
         { id: 'base-multiplier-1', purchased: true },
       ]),
     );
+  });
+
+  it('migrates v8 saves through v9 and drops ownedModifiers at v10', () => {
+    const { state, version } = migrateSaveState(
+      {
+        coins: '1000',
+        upgrades: [],
+        boosts: [],
+        ascensionTokens: 3,
+        ownedModifiers: ['mod-idle-1'],
+      },
+      8,
+    );
+
+    expect(version).toBe(10);
+    expect(state.ascensionTokens).toBe(3);
+    expect(state.ownedModifiers).toBeUndefined();
   });
 });

@@ -1,6 +1,7 @@
 import { COLORS, FONT_FAMILIES } from '../../config/theme.js';
 import { UI_TEXT } from '../../config/uiText.js';
 import { formatCoins } from '../../lib/clickerMath.js';
+import { setActivePage } from './pageNavigation.js';
 
 export function formatOfflineDuration(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
@@ -16,6 +17,28 @@ export function formatOfflineDuration(totalSeconds) {
   }
 
   return `${seconds}s`;
+}
+
+/** List cameras composite over the main camera — hide them while a modal is up. */
+function hideListCamerasForModal(scene) {
+  scene.upgradeCamera?.setVisible(false);
+  scene.metaCamera?.setVisible(false);
+  scene.statusCamera?.setVisible(false);
+  scene.upgradeScroll?.setVisible(false);
+  scene.metaScroll?.setVisible(false);
+  scene.statusScroll?.setVisible(false);
+}
+
+function restoreUiAfterModal(scene) {
+  if (typeof scene.activePage === 'number') {
+    setActivePage(scene, scene.activePage);
+  }
+}
+
+function ignoreModalOnListCameras(scene, modal) {
+  scene.upgradeCamera?.ignore(modal);
+  scene.metaCamera?.ignore(modal);
+  scene.statusCamera?.ignore(modal);
 }
 
 export function showOfflineReturn(scene, offline) {
@@ -73,13 +96,15 @@ export function showOfflineReturn(scene, offline) {
   scene.offlineReturn = scene.add
     .container(0, 0, [overlay, panel, title, awayText, earningsLabel, earnings, continueButton, continueText])
     .setDepth(3000);
-  scene.upgradeCamera?.ignore(scene.offlineReturn);
-  scene.boostCamera?.ignore(scene.offlineReturn);
-  scene.statusCamera?.ignore(scene.offlineReturn);
+
+  hideListCamerasForModal(scene);
+  ignoreModalOnListCameras(scene, scene.offlineReturn);
 
   continueButton.on('pointerup', () => {
     scene.offlineReturn?.destroy(true);
     scene.offlineReturn = null;
+    restoreUiAfterModal(scene);
+    scene.renderState?.();
   });
 }
 
@@ -183,13 +208,13 @@ export function showConfirmDialog(scene, { title, body, confirmLabel, cancelLabe
     .setDepth(3200);
 
   scene.confirmDialog = dialog;
-  scene.upgradeCamera?.ignore(dialog);
-  scene.boostCamera?.ignore(dialog);
-  scene.statusCamera?.ignore(dialog);
+  hideListCamerasForModal(scene);
+  ignoreModalOnListCameras(scene, dialog);
 
   function close() {
     dialog.destroy(true);
     scene.confirmDialog = null;
+    restoreUiAfterModal(scene);
   }
 
   confirmButton.on('pointerup', () => {

@@ -8,6 +8,7 @@ import {
 } from '../../lib/clickerMath.js';
 import { getMetaUpgradeConditionText, getMetaUpgradeEffectText } from '../../ui/metaUpgradeCopy.js';
 import { getAutoTapEffectLabel } from '../../ui/autoTapCursors.js';
+import Decimal from 'decimal.js';
 
 import { PAGE } from './pageNavigation.js';
 
@@ -40,15 +41,15 @@ export function updateStoreListLayout(scene) {
 }
 
 export function updateMetaListLayout(scene) {
-  const { rowHeight, rowGap, listTop } = scene.boostLayout;
+  const { rowHeight, rowGap, listTop } = scene.metaLayout;
   const step = rowHeight + rowGap;
-  const visibleBoosts = scene.state.boosts.filter((boost) => isMetaUpgradeUnlocked(scene.state, boost));
-  scene.boostEmptyText.setVisible(scene.activePage === PAGE.UPGRADE && visibleBoosts.length === 0);
+  const visibleMeta = scene.state.boosts.filter((meta) => isMetaUpgradeUnlocked(scene.state, meta));
+  scene.metaEmptyText.setVisible(scene.activePage === PAGE.UPGRADE && visibleMeta.length === 0);
 
   let visibleIndex = 0;
-  scene.boostItems.forEach((item) => {
-    const boost = scene.state.boosts.find((entry) => entry.id === item.id);
-    const available = isMetaUpgradeUnlocked(scene.state, boost);
+  scene.metaItems.forEach((item) => {
+    const meta = scene.state.boosts.find((entry) => entry.id === item.id);
+    const available = isMetaUpgradeUnlocked(scene.state, meta);
     const objects = [item.background, item.name, item.condition, item.effect, item.buyButton, item.buyText];
     objects.forEach((object) => object.setVisible(available));
 
@@ -62,11 +63,12 @@ export function updateMetaListLayout(scene) {
     }
 
     item.baseY = listTop + rowHeight / 2 + visibleIndex * step;
-    const canBuy = scene.state.coins.gte(boost.cost);
-    item.condition.setText(getMetaUpgradeConditionText(boost));
+    const cost = new Decimal(meta.cost).floor();
+    const canBuy = scene.state.coins.gte(cost);
+    item.condition.setText(getMetaUpgradeConditionText(meta));
     item.condition.setColor(COLORS.mutedText);
-    item.effect.setText(getMetaUpgradeEffectText(boost));
-    item.buyText.setText(formatCoins(boost.cost));
+    item.effect.setText(getMetaUpgradeEffectText(meta));
+    item.buyText.setText(formatCoins(cost));
     item.buyButton.setFillStyle(canBuy ? COLORS.primary : COLORS.disabled);
     item.buyButton.setStrokeStyle(2, canBuy ? COLORS.primaryBorder : COLORS.disabledBorder);
     item.buyText.setColor(canBuy ? COLORS.primaryText : COLORS.disabledText);
@@ -74,13 +76,15 @@ export function updateMetaListLayout(scene) {
   });
 
   const listHeight = visibleIndex > 0 ? visibleIndex * rowHeight + (visibleIndex - 1) * rowGap : 0;
-  scene.boostScroll.updateMetrics(listHeight);
+  scene.metaScroll.updateMetrics(listHeight);
 }
 
 export function renderStoreRows(scene) {
+  const buyAmount = scene.settings?.buyAmount ?? 1;
   scene.upgradeItems.forEach((item) => {
     const upgrade = scene.state.upgrades.find((entry) => entry.id === item.id);
-    const cost = scene.engine.getUpgradeCost(item.id);
+    const preview = scene.engine.getUpgradeBuyPreview(item.id, buyAmount);
+    const cost = preview?.cost ?? scene.engine.getUpgradeCost(item.id, buyAmount);
     if (item.isLockedPreview) {
       item.label.setText('???');
       item.level?.setText('').setVisible(false);
@@ -94,7 +98,8 @@ export function renderStoreRows(scene) {
       return;
     }
 
-    const canBuy = scene.state.coins.gte(cost);
+    const amount = preview?.amount ?? 1;
+    const canBuy = preview?.canBuy === true;
     const effectLabel =
       upgrade.type === 'click'
         ? UI_TEXT.tapPowerEffect.replace('{value}', String(upgrade.baseValue))
@@ -109,7 +114,7 @@ export function renderStoreRows(scene) {
     item.label.setText(upgrade.label);
     item.level?.setText(`Lv.${upgrade.level}`).setVisible(item.rowBg.visible);
     item.info.setText(`${effectLabel}  |  cost ${formatCoins(cost)}`);
-    item.buyText.setText(UI_TEXT.buy);
+    item.buyText.setText(amount > 1 || buyAmount === 'max' ? `BUY ${amount}` : UI_TEXT.buy);
 
     const starCount = getGeneratorEfficiencyStarCount(scene.state, upgrade.id);
     const starStartX = item.label.x + item.label.width + 10;
@@ -118,7 +123,6 @@ export function renderStoreRows(scene) {
       star.setVisible(show);
       if (show) {
         star.x = starStartX + index * 17;
-        // Keep stars left of the level column.
         if (item.level && star.x + 14 > item.level.x - item.level.width - 8) {
           star.x = Math.max(starStartX, item.level.x - item.level.width - 8 - (starCount - 1 - index) * 17);
         }

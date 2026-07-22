@@ -1,18 +1,19 @@
 import { COLORS, FONT_FAMILIES } from '../config/theme.js';
 import { GENERATOR_EFFICIENCY_STAR_MAX } from '../data/metaUpgrades.js';
 
-export function buildUpgradeListView({ scene, container, upgrades, layout, onPointerDown, onPointerUp }) {
+const MIN_BUY_HIT = 44;
+
+export function buildUpgradeListView({ scene, container, upgrades, layout, onBuy }) {
   const { rowHeight, rowGap, compactRows, listTop } = layout;
   const step = rowHeight + rowGap;
   const startY = listTop + rowHeight / 2;
   const labelFontSize = compactRows ? '20px' : '24px';
   const infoFontSize = compactRows ? '16px' : '20px';
   const buyButtonWidth = compactRows ? 130 : 146;
-  const buyButtonHeight = compactRows ? 48 : 56;
+  const buyButtonHeight = Math.max(MIN_BUY_HIT, compactRows ? 48 : 56);
   const buyButtonX = scene.scale.width - buyButtonWidth / 2 - 34;
-  // Fixed column just left of BUY — levels scan as one vertical line.
   const levelX = buyButtonX - buyButtonWidth / 2 - 14;
-  const buyFontSize = compactRows ? '18px' : '20px';
+  const buyFontSize = compactRows ? '16px' : '18px';
   const starFontSize = compactRows ? '14px' : '15px';
 
   return upgrades.map((upgrade, index) => {
@@ -65,13 +66,15 @@ export function buildUpgradeListView({ scene, container, upgrades, layout, onPoi
 
     buyButton.on('pointerdown', (pointer) => {
       buyButton.pointerDownAt = { x: pointer.x, y: pointer.y };
-      onPointerDown(upgrade, pointer);
+      scene.beginPageSwipe?.(pointer);
     });
     buyButton.on('pointerup', (pointer) => {
       const start = buyButton.pointerDownAt;
       const moved = start && Math.hypot(pointer.x - start.x, pointer.y - start.y) > 14;
       buyButton.pointerDownAt = null;
-      onPointerUp(upgrade, pointer, moved);
+      if (!moved) {
+        onBuy(upgrade);
+      }
     });
 
     const item = { id: upgrade.id, baseY: y, rowBg, label, level, info, stars, buyButton, buyText };

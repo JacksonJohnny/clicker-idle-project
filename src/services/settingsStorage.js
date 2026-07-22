@@ -1,10 +1,11 @@
 import { SAVE_KEY } from '../config/gameConfig.js';
+import { normalizeBuyAmount } from '../config/buyAmounts.js';
 import { storageGetItem, storageSetItem } from './storageAdapter.js';
 
 const SETTINGS_KEY = `${SAVE_KEY}-settings`;
 const DEFAULT_SETTINGS = {
   soundEnabled: true,
-  vibrationEnabled: true,
+  buyAmount: 1,
 };
 
 export function loadSettings() {
@@ -14,7 +15,7 @@ export function loadSettings() {
 
     return {
       soundEnabled: saved?.soundEnabled !== false,
-      vibrationEnabled: saved?.vibrationEnabled !== false,
+      buyAmount: normalizeBuyAmount(saved?.buyAmount),
     };
   } catch (error) {
     return { ...DEFAULT_SETTINGS };
@@ -22,5 +23,11 @@ export function loadSettings() {
 }
 
 export function saveSettings(settings) {
-  storageSetItem(SETTINGS_KEY, JSON.stringify(settings));
+  storageSetItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      soundEnabled: settings.soundEnabled !== false,
+      buyAmount: normalizeBuyAmount(settings.buyAmount),
+    }),
+  );
 }

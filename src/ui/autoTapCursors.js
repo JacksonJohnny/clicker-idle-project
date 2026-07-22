@@ -3,7 +3,6 @@ import { UI_TEXT } from '../config/uiText.js';
 import {
   AUTO_TAP_CURSOR_ARC,
   AUTO_TAP_CURSOR_DISPLAY_H,
-  AUTO_TAP_CURSOR_TINTS,
   AUTO_TAP_ORBIT_RADIUS,
   AUTO_TAP_RING_GAP,
   AUTO_TAP_VISUAL_RING_COUNT,
@@ -19,8 +18,6 @@ const RING_GAP = AUTO_TAP_RING_GAP;
 const VISUAL_RING_COUNT = AUTO_TAP_VISUAL_RING_COUNT;
 const CURSOR_ARC = AUTO_TAP_CURSOR_ARC;
 const CLICK_PULL = 34;
-
-export { AUTO_TAP_CURSOR_TINTS, getMaxAutoTapCursorSlots };
 
 function ringCapacity(radius) {
   return Math.max(12, Math.floor((Math.PI * 2 * radius) / CURSOR_ARC));

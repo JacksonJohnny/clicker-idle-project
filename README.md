@@ -1,8 +1,10 @@
 # Mobile Idle Clicker Boilerplate
 
-Boilerplate mobile-first para jogos clicker/idle construído com **Phaser 4**, **Vite**, **Decimal.js** e **Capacitor 8**.
+Boilerplate mobile-first para jogos clicker/idle com **Phaser 4**, **Vite**, **Decimal.js** e **Capacitor 8**.
 
 Resolução base: `540×960`. App id Capacitor: `com.clickergame.app`.
+
+Guia curto de fork/rebrand: [`BOILERPLATE.md`](BOILERPLATE.md).
 
 ## Stack
 
@@ -16,34 +18,32 @@ Resolução base: `540×960`. App id Capacitor: `com.clickergame.app`.
 
 ## Recursos
 
-- Economia com números grandes e custos exponenciais.
-- Clique manual + geradores idle encadeados.
-- **Auto Tap:** cursores em órbita (até 2 anéis / 63 slots); depois disso cada level pinta uma cor (1×, 2×, 3×…).
-- Aba UPGRADE com meta-upgrades genéricos (sem lore):
-  - efficiency por gerador (×2 ao atingir owned N) — pips amarelos `★` na STORE
-  - produção global
-  - tap ganha % da produção idle
-  - BASE MULTIPLIER 1…20
-- Catálogo progressivo: só o próximo item bloqueado aparece como `???`.
-- Compra unitária ou acelerada por toque prolongado.
-- Idle em tempo real por relógio de parede (continua ao voltar da aba).
-- Ganhos offline (cap configurável; padrão sem teto) e modal de retorno.
+- Economia Decimal.js com custos exponenciais e formatação estilo Cookie Clicker.
+- Clique manual + 20 geradores idle encadeados + Auto Tap (cursores em órbita).
+- Aba **UPGRADE**: meta-upgrades genéricos (efficiency ×2, global, tap-%-of-idle, BASE MULTIPLIER 1…20).
+- Aba **STORE**: compra **×1 / ×10 / ×25 / MAX** (sem hold-to-buy); catálogo progressivo com `???`.
+- Idle por **relógio de parede** + ganhos offline (cap opcional; padrão **sem teto**).
 - Achievements com bônus permanente de idle %.
-- Prestige com **Ascension Tokens** (quadrado roxo + nome) e diálogo de confirmação.
-- Aba STATUS (stats, multiplicadores, achievements).
-- Contador de coins atualizado a cada frame (sem floating verde de income).
-- Formatação de números no estilo Cookie Clicker.
-- Save versionado com migrações (`SAVE_VERSION`) — progresso antigo sobrevive a updates.
-- Som e vibração configuráveis (OFF em vermelho fraco / ON em verde).
-- Navegação por abas + swipe, pensada para mobile.
-- Build web, Android e iOS.
-- Testes automatizados da economia com Vitest.
+- Prestige → **Ascension Tokens** (quadrado roxo) com diálogo de confirmação.
+- Abas: UPGRADE → STORE → TAP → STATUS → PRESTIGE (+ settings); swipe + nav ≥44px.
+- Save versionado (`SAVE_VERSION = 10`) com migrações e checksum.
+- Build web / Android / iOS; testes Vitest (economia, prestige, achievements, save).
+
+## Glossário de naming (importante para forks)
+
+| Conceito | Código / UI | Persistência |
+| --- | --- | --- |
+| Meta-upgrades (aba UPGRADE) | Catálogo `META_UPGRADES`, UI `meta*` (`metaCamera`, `metaScroll`, `metaUpgradesView`) | Campo legado **`boosts`** — não renomear sem migração |
+| Ascension Tokens | `ascensionTokens`, badge roxo | `ascensionTokens` (ex-`stars` na v8) |
+| ★ amarelas na STORE | Efficiency pips | Derivadas de efficiency compradas em `boosts` |
+
+**Regra:** renomeie UI/cena à vontade; o campo de save `boosts` fica estável para não quebrar progresso antigo.
 
 ## Requisitos
 
-- Node.js 20 ou superior.
-- Android Studio para Android.
-- macOS com Xcode para iOS.
+- Node.js 20+
+- Android Studio (Android)
+- macOS + Xcode (iOS)
 
 ## Desenvolvimento
 
@@ -52,7 +52,7 @@ npm install
 npm run dev
 ```
 
-Validação completa:
+Validação:
 
 ```bash
 npm test
@@ -62,260 +62,210 @@ npm run test:coverage
 
 | Script | Função |
 | --- | --- |
-| `npm run dev` | Servidor Vite local |
-| `npm run build` | Build de produção em `dist/` |
-| `npm run preview` | Preview do build |
-| `npm test` | Suite Vitest uma vez |
-| `npm run test:watch` | Vitest em watch |
-| `npm run test:coverage` | Cobertura |
-| `npm run android` / `npm run ios` | Build + sync + abrir IDE nativa |
-| `npm run cap:doctor` | Diagnóstico do ambiente Capacitor |
+| `npm run dev` | Servidor Vite |
+| `npm run build` / `preview` | Build e preview |
+| `npm test` / `test:watch` / `test:coverage` | Vitest |
+| `npm run lint` / `format` | ESLint / Prettier |
+| `npm run android` / `ios` | Build + sync + abrir IDE |
+| `npm run cap:doctor` | Diagnóstico Capacitor |
 
 ## Estrutura
 
 ```text
 src/
-  config/       Resolução, loops, tema e textos
-  controllers/  Interações com estado próprio (scroll)
-  data/         Geradores, upgrades, meta-upgrades, achievements
-  lib/          Motor econômico puro, prestige, formatação
-  scenes/       Orquestração da cena Phaser e ciclo de vida
-  services/     Save, preferências e feedback do dispositivo
-  ui/           Builders de interface sem regras econômicas
+  config/          Resolução, loops, tema, textos, buy amounts, SAVE_*
+  controllers/     ListScrollController
+  data/            Geradores, upgrades, metaUpgrades, achievements
+  lib/             Economia pura, prestige, Auto Tap, formatação
+  scenes/          ClickerScene (orquestra)
+    clicker/       Page builders, listas, overlays, nav, cameras, wall-clock
+  services/        Save, migrações, settings, feedback, storage
+  ui/              Builders Phaser (sem regras de compra)
 ```
 
-Responsabilidades principais:
+Arquivos-chave:
 
-- [`src/lib/clickerMath.js`](src/lib/clickerMath.js): economia, compras, produção, offline e formatação.
-- [`src/lib/prestige.js`](src/lib/prestige.js): ganho e multiplicador de Ascension Tokens.
-- [`src/lib/autoTapProgress.js`](src/lib/autoTapProgress.js): slots, cores e multiplicadores do Auto Tap.
-- [`src/scenes/ClickerScene.js`](src/scenes/ClickerScene.js): motor + UI + idle por wall-clock + persistência.
-- [`src/config/theme.js`](src/config/theme.js): cores, fontes e medidas.
-- [`src/config/uiText.js`](src/config/uiText.js): textos da interface.
-- [`src/config/gameConfig.js`](src/config/gameConfig.js): resolução, `SAVE_KEY`, `SAVE_VERSION` e loops.
-- [`src/data/generators.js`](src/data/generators.js): catálogo de geradores.
-- [`src/data/upgrades.js`](src/data/upgrades.js): upgrades de clique + Auto Tap.
-- [`src/data/metaUpgrades.js`](src/data/metaUpgrades.js): catálogo `META_UPGRADES`.
-- [`src/data/achievements.js`](src/data/achievements.js): milestones → bônus idle permanente.
-- [`src/data/baseMultipliers.js`](src/data/baseMultipliers.js): tiers `BASE MULTIPLIER 1…20`.
-- [`src/services/saveStorage.js`](src/services/saveStorage.js): load/save com checksum e regravação canônica.
-- [`src/services/saveMigrations.js`](src/services/saveMigrations.js): passos de migração entre versões de save.
-- [`src/services/storageAdapter.js`](src/services/storageAdapter.js): localStorage + mirror Capacitor Preferences.
-- [`src/controllers/ListScrollController.js`](src/controllers/ListScrollController.js): scroll por dedo (barra só visual).
-- [`src/scenes/clicker/`](src/scenes/clicker/): helpers da cena (hold-buy, wall-clock, listas, overlays, nav, cameras).
-
-Detalhes de extensão também em [`BOILERPLATE.md`](BOILERPLATE.md).
+| Área | Arquivo |
+| --- | --- |
+| Economia | [`src/lib/clickerMath.js`](src/lib/clickerMath.js) |
+| Prestige | [`src/lib/prestige.js`](src/lib/prestige.js) |
+| Auto Tap | [`src/lib/autoTapProgress.js`](src/lib/autoTapProgress.js) |
+| Cena | [`src/scenes/ClickerScene.js`](src/scenes/ClickerScene.js) + [`src/scenes/clicker/`](src/scenes/clicker/) |
+| Page builders | [`src/scenes/clicker/createPages.js`](src/scenes/clicker/createPages.js) |
+| Tema / copy | [`theme.js`](src/config/theme.js), [`uiText.js`](src/config/uiText.js) |
+| Buy modes | [`src/config/buyAmounts.js`](src/config/buyAmounts.js) |
+| Save | [`gameConfig.js`](src/config/gameConfig.js), [`saveStorage.js`](src/services/saveStorage.js), [`saveMigrations.js`](src/services/saveMigrations.js) |
+| Catálogos | [`generators.js`](src/data/generators.js), [`upgrades.js`](src/data/upgrades.js), [`metaUpgrades.js`](src/data/metaUpgrades.js), [`achievements.js`](src/data/achievements.js) |
+| Meta UI | [`src/ui/metaUpgradesView.js`](src/ui/metaUpgradesView.js), [`metaUpgradeCopy.js`](src/ui/metaUpgradeCopy.js) |
 
 ---
 
-## Especificação de gameplay
+## Gameplay
 
 ### Economia
 
 - Moeda: `coins` (`Decimal`).
-- Clique base: `1` + soma dos upgrades `type: 'click'`.
-- Idle: soma dos geradores `type: 'auto'` × multiplicadores de meta-upgrades.
-- Custo de upgrade/gerador: `baseCost * growth^level` (floor).
-- Meta-upgrades (aba UPGRADE, compra única, somem da lista ao comprar):
-  - `generator`: own N daquele gerador → produção dele ×2
-  - `global`: own N geradores no total → produção global ×M
-  - `click_per_second`: N taps → tap +% da produção idle
-  - `base_multiplier`: lifetime coins → produção global ×(1+%)
-- Prestige: soft reset → **Ascension Tokens** (+1% idle cada). Confirmação obrigatória.
-- Achievements: milestones → multiplicador idle permanente (mantidos no prestige).
-- Sem sistemas temáticos pesados (leite/kittens, grandma types, research).
+- Tap: `1` + upgrades `type: 'click'` (+ share de idle via meta).
+- Idle: geradores `type: 'auto'` × meta × achievements × Ascension Tokens.
+- Custo: `baseCost * growth^level` (floor).
+- Meta-upgrades (compra única; somem da lista ao comprar):
+  - `generator` — own **5 / 25 / 50 / 100 / 200** → produção daquele gerador ×2
+  - `global` — own N total → produção global ×M
+  - `click_per_second` — N taps → tap +% da produção idle
+  - `base_multiplier` — lifetime coins → produção global ×(1+%)
+- Prestige: soft reset → Ascension Tokens (+1% idle cada).
+- Achievements: milestones → idle % permanente.
 
-Catálogo padrão:
-
-- Upgrades de clique: `tap-power` + `auto-tap` (1 clique / 10s por level; visual de cursores na aba TAP).
-- 10 geradores encadeados (`upgrade-1` … `upgrade-10`) via `createGeneratorChain`.
-- Meta-upgrades gerados em `META_UPGRADES` (tiers por gerador + globais + tap-% + BASE MULTIPLIER).
-
-Desbloqueio: cada gerador exige o anterior (`unlockAfter`). A UI mostra todos os liberados + apenas o próximo como `???`.
+Catálogo padrão: `tap-power` + `auto-tap`, geradores `upgrade-1`…`upgrade-20`, `META_UPGRADES` (**130**: 100 efficiency + 5 global + 5 tap-% + 20 BASE MULTIPLIER). Unlock encadeado (`unlockAfter`); UI mostra liberados + próximo como `???`.
 
 ### Prestige (Ascension Tokens)
 
-- Moeda permanente: `ascensionTokens` (ícone = quadrado roxo ao lado do nome).
-- Ganho ≈ `floor(sqrt(coinsThisAscension / 1e6))` (mínimo ~1M coins nesta run).
-- Soft reset limpa coins, níveis da STORE e meta-upgrades comprados.
-- Mantém tokens, achievements e stats all-time.
-- ★ amarelas na STORE são **efficiency pips**, não Ascension Tokens.
+- Ganho ≈ `floor(sqrt(coinsThisAscension / 1e6))` (mínimo ~1M nesta run).
+- Soft reset limpa: coins, níveis da STORE, meta-upgrades comprados (`boosts`).
+- Mantém: tokens, achievements, stats all-time.
+- ★ amarelas na STORE = efficiency pips, **não** Ascension Tokens.
+- Confirmação obrigatória na aba PRESTIGE.
 
 ### Auto Tap
 
-- Cada level: +1 clique a cada 10s (onda).
-- Visual: até **63** cursores em **2 anéis**; levels seguintes **recolorem** um cursor por vez (branco → azul → …).
-- Multiplicador por cor: **tier + 1** (branco 1×, azul 2×, menta 3×, …). A tint pode repetir a paleta; o poder continua subindo.
-- Cada jab do cursor mostra `+ganho` individual (já com o multiplicador da cor).
-- Cores/slots derivados do level — **não precisam de campo extra no save**.
+- +1 clique / 10s por level (onda).
+- Até **63** cursores em **2 anéis**; depois recolore (tier+1 de poder).
+- Visual derivado do `level` de `auto-tap` — sem campo extra no save.
 
 ### Idle e offline
 
-- Produção idle aplicada por **relógio real** (`Date.now`) a cada frame, não só pelo timer do Phaser.
-- Ao ocultar a aba / `pagehide` / `beforeunload`: aplica progresso pendente e salva.
-- Ao voltar para a aba: recupera o tempo parado; se ≥ 60s, mostra modal de offline.
-- No load: `hydrate` aplica progresso desde `savedAt` em um único passo matemático (sem simular frame a frame).
-- Teto offline: `LOOP_CONFIG.maxOfflineSeconds` (`null` = sem teto).
+- Progresso por `Date.now` (wall-clock), não só pelo timer do Phaser.
+- Hide / `pagehide` / `beforeunload`: aplica pendente e salva.
+- Volta à aba: se ausente ≥ **60s**, modal “Welcome back”.
+- Load: `hydrate` aplica desde `savedAt` em um passo.
+- Cap: `LOOP_CONFIG.maxOfflineSeconds` (`null` = sem teto).
 
-### Formatação de números (estilo Cookie Clicker)
+### Interface
 
-Implementada em `formatCoins`:
+Ordem das abas: **UPGRADE → STORE → TAP → STATUS → PRESTIGE** (+ settings).
 
-| Faixa | Exemplo |
+| Aba | Conteúdo |
 | --- | --- |
-| &lt; 1.000.000 | `705,026` (separador de milhar); fração com 1 casa se necessário (`999.4`) |
-| ≥ 1.000.000 | `1.014 billion`, `1 million`, … até `decillion` |
-| Contador ao vivo | casas decimais caem conforme o `perSecond` (se a unidade da escala já muda ~2x/s, mostra inteiro) |
-| Acima da escala nomeada | notação científica (`1.00e40`) |
+| UPGRADE | Meta-upgrades disponíveis (`meta*` UI / cameras) |
+| STORE | Geradores + buy bar ×1/×10/×25/MAX |
+| TAP | Botão central + Auto Tap |
+| STATUS | Stats, multiplicadores, achievements |
+| PRESTIGE | Tokens + soft reset confirmado |
 
-O contador principal sobe em tempo real; não há texto flutuante verde de income idle. Feedback flutuante permanece para tap e compras.
+Swipe horizontal entre páginas; scroll vertical nas listas. Overlay “Click to start” em save novo. List cameras escondidas enquanto modal está aberto.
 
-### Interface e navegação
+### Compra na STORE
 
-Abas: **STORE** | **TAP** | **UPGRADE** (+ settings).
-
-- Tap: botão central de clique + anéis de Auto Tap.
-- Store: lista scrollável de geradores/upgrades de clique.
-- Upgrade: fila de meta-upgrades disponíveis (estilo Cookie Clicker; scroll na roda do mouse).
-- Settings: som e vibração on/off.
-- Swipe horizontal entre páginas; scroll vertical na store.
-- Overlay inicial “Click to start” em save novo.
-- Modal “Welcome back” com tempo ausente e coins ganhos.
-
-### Compra mobile
-
-- Toque curto: compra 1.
-- Segurar (~550 ms): compra acelerada, até ~10/s.
-- Scroll, swipe, sair do jogo ou soltar fora cancela o hold.
+- Preferência salva em settings (`buyAmount`).
+- BUY aplica o modo ativo; `MAX` = máximo acessível com coins atuais.
+- Sem hold-to-buy.
 
 ### Feedback
 
-- Compra: Web Audio + vibração leve (se suportado e habilitado).
-- Preferências salvas à parte do save de progresso.
+- Compra: Web Audio (se habilitado).
+- Settings (som, buy amount) em chave separada do save de progresso.
 
 ---
 
-## Configuração (`LOOP_CONFIG` / `GAME_CONFIG`)
+## Configuração
 
 ```js
 // src/config/gameConfig.js
 GAME_CONFIG = { width: 540, height: 960, backgroundColor: '#111822' }
 LOOP_CONFIG = {
-  autoSaveDelayMs: 10000,        // autosave a cada 10s
-  maxOfflineSeconds: 8 * 60 * 60 // teto de 8h de progresso offline
+  autoSaveDelayMs: 10000,
+  maxOfflineSeconds: null, // null = sem teto offline
 }
 SAVE_KEY = 'clicker-phaser-save-v1' // NUNCA renomear — use SAVE_VERSION + migrações
-SAVE_VERSION = 6
+SAVE_VERSION = 10
 ```
 
-Optional Vite env (`.env.example`): `VITE_APP_ID`, `VITE_SAVE_KEY`.
+Env opcional (`.env.example`): `VITE_SAVE_KEY`. App id nativo: `capacitor.config.json` → `appId`.
 
 ---
 
 ## Save e migrações
 
-**Status atual: ok para publicar.** Saves antigos sobem automaticamente até `SAVE_VERSION = 8`.
+**Status: ok para publicar.** Saves antigos migram até `SAVE_VERSION = 10`.
 
-### O que é persistido
+### Persistido
 
-Snapshot: `coins`, `totalCoinsEarned`, `coinsThisAscension`, `totalClicks`, `autoTapProgress`, `ascensionTokens`, `prestigeCount`, `unlockedAchievements`, níveis de upgrades (inclui Auto Tap), meta-upgrades comprados (`boosts`), `savedAt`.
+`coins`, `totalCoinsEarned`, `coinsThisAscension`, `totalClicks`, `autoTapProgress`, `ascensionTokens`, `prestigeCount`, `unlockedAchievements`, níveis de upgrades, meta comprados (`boosts`), `savedAt`.
 
-Hydrate faz merge **por `id`**: itens novos no catálogo entram em 0 / não comprados; itens removidos do catálogo são ignorados sem apagar o resto.
+Hydrate faz merge **por `id`**: catálogo novo entra zerado; ids removidos são ignorados.
 
 ### Pipeline no load
 
-1. Lê `SAVE_KEY` (e `LEGACY_SAVE_KEYS` se a chave já tiver mudado no passado).
-2. Aceita envelope `{ version, payload, checksum }` ou JSON legado sem envelope.
-3. Se o checksum falhar mas o JSON for um save válido, **tenta recuperar** (não descarta o progresso à toa).
-4. Roda `migrateSaveState` até a versão atual.
-5. Regrava no formato canônico atual.
+1. Lê `SAVE_KEY` (+ `LEGACY_SAVE_KEYS` se necessário).
+2. Aceita envelope `{ version, payload, checksum }` ou JSON legado.
+3. Checksum inválido mas JSON válido → tenta recuperar.
+4. `migrateSaveState` até a versão atual.
+5. Regrava formato canônico (inclui limpeza de `stars` legado).
 
-Autosave a cada 10s + flush em blur / `pagehide` / `beforeunload`.  
-Reset total: `?resetSave=1`. Settings (som/vibração) ficam em chave separada.
+Autosave 10s + flush em blur / `pagehide` / `beforeunload`. Reset: `?resetSave=1`.
 
-### Histórico de versões
+### Histórico
 
-| Versão | O que a migração faz |
+| Versão | Migração |
 | --- | --- |
-| **1** | Save legado (JSON puro ou envelope antigo). |
-| **2** | Normaliza shape (`coins`, arrays, `autoTapProgress`, etc.). |
-| **3** | Compensa **milestones** removidos → efficiency já comprados. Boosts `first-surge` / `power-grid` / `overdrive` → globals. |
-| **4** | (breve) tentativa `upgrade-N` → `generator-N`. |
-| **5** | Reverte `generator-N` → `upgrade-N` (ids estáveis) + merge com aliases. |
-| **6** | `totalCoinsEarned` + aliases `cps-tap-*` → `click-per-second-tap-*`. |
-| **7** | Prestige/achievements: `coinsThisAscension`, `stars`, `prestigeCount`, `unlockedAchievements`. |
-| **8** | `stars` → `ascensionTokens`. |
+| **1** | Save legado |
+| **2** | Normaliza shape |
+| **3** | Milestones → efficiency; `first-surge` / etc. → globals |
+| **4–5** | Ids `generator-N` ↔ `upgrade-N` + aliases |
+| **6** | `totalCoinsEarned` + aliases cps-tap |
+| **7** | Prestige/achievements (`stars`, …) |
+| **8** | `stars` → `ascensionTokens` |
+| **9** | Adiciona `ownedModifiers` (sistema temporário; removido na v10) |
+| **10** | Remove `ownedModifiers` |
 
-Auto Tap (cores, anéis, multiplicadores) **não exige migração**: tudo deriva do `level` de `auto-tap` já salvo.
+### Atualizar sem perder progresso
 
-### Como atualizar o jogo sem perder progresso
-
-1. **Não renomeie** `SAVE_KEY`. Se for inevitável, coloque a chave antiga em `LEGACY_SAVE_KEYS`.
-2. Incremente `SAVE_VERSION` em `gameConfig.js`.
-3. Em `saveMigrations.js`, adicione `{ from: N, to: N+1, migrate(state) { … } }`.
-4. Se renomear um `id` de upgrade/boost, registre em `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES`.
-5. Mudanças só de catálogo (novo gerador, novo meta-upgrade) em geral **não** precisam de passo novo — o merge por `id` basta.
+1. Não renomeie `SAVE_KEY` (ou liste a antiga em `LEGACY_SAVE_KEYS`).
+2. Incremente `SAVE_VERSION`.
+3. Adicione passo em `saveMigrations.js`.
+4. Ids renomeados → `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES`.
+5. Só catálogo novo em geral **não** precisa de migração (merge por id).
 
 ### Limitações conscientes
 
-- Boosts globais antigos (`first-surge` etc. eram ×2) mapeiam para globals atuais (multiplicadores menores). O progresso não some; o poder daqueles itens específicos fica mais próximo do balance novo.
-- Os **20 primeiros** multipliers genéricos viraram `BASE MULTIPLIER 1…20` (sem lore sazonal).
+- Globals antigos (`first-surge` etc.) mapeiam para globals atuais (multiplicadores menores); o progresso não some.
+- Multipliers genéricos viraram `BASE MULTIPLIER 1…20` (sem lore).
 
 ---
 
 ## Customização
 
-1. Identidade visual: `src/config/theme.js`
-2. Textos/idioma: `src/config/uiText.js`
-3. Resolução e loops: `src/config/gameConfig.js`
-4. Geradores: `src/data/generators.js`
-5. Upgrades de clique / Auto Tap: `src/data/upgrades.js` + `src/lib/autoTapProgress.js`
-6. Meta-upgrades: `src/data/metaUpgrades.js`
-7. Prestige / Ascension Tokens: `src/lib/prestige.js`
-8. Achievements: `src/data/achievements.js`
-9. Fórmulas e formatação: `src/lib/clickerMath.js`
-10. Migrações de save: `src/services/saveMigrations.js`
+1. Visual — `src/config/theme.js`
+2. Textos — `src/config/uiText.js`
+3. Resolução / loops / save — `src/config/gameConfig.js`
+4. Buy modes — `src/config/buyAmounts.js`
+5. Geradores — `src/data/generators.js`
+6. Clique / Auto Tap — `src/data/upgrades.js` + `src/lib/autoTapProgress.js`
+7. Meta-upgrades — `src/data/metaUpgrades.js` (save continua em `boosts`)
+8. Prestige — `src/lib/prestige.js`
+9. Achievements — `src/data/achievements.js`
+10. Fórmulas — `src/lib/clickerMath.js`
+11. Migrações — `src/services/saveMigrations.js`
 
-Depois: `npm test` e `npm run build`.
+Depois: `npm test` && `npm run build`.
 
-### Pontos de extensão sugeridos
-
-- Modificadores extras: `src/data/modifiers.js`
-- Missões/sazonais: `src/lib/objectivesEngine.js`
+Extensões naturais: missões em `src/lib/objectivesEngine.js`.
 
 ---
 
-## Android
-
-Primeira vez:
+## Android / iOS
 
 ```bash
-npm run build
-npm run cap:add:android
-```
-
-Depois:
-
-```bash
+# Android (primeira vez)
+npm run build && npm run cap:add:android
 npm run android
-```
 
-## iOS
-
-No macOS, primeira vez:
-
-```bash
-npm run build
-npm run cap:add:ios
-```
-
-Depois:
-
-```bash
+# iOS (macOS; primeira vez)
+npm run build && npm run cap:add:ios
 npm run ios
 ```
 
-Use `npm run cap:doctor` para verificar o ambiente nativo.
+`npm run cap:doctor` verifica o ambiente nativo.
 
 ## Deploy Web
 
@@ -324,7 +274,7 @@ npm run build
 npm run preview
 ```
 
-O workflow [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) roda testes, gera `dist/` e publica no GitHub Pages a cada push em `main`.
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) testa, builda e publica no GitHub Pages a cada push em `main`.
 
 ## Licença
 

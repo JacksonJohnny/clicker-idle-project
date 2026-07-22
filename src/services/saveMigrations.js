@@ -16,9 +16,20 @@ export const UPGRADE_ID_ALIASES = {
   'generator-8': 'upgrade-8',
   'generator-9': 'upgrade-9',
   'generator-10': 'upgrade-10',
+  'generator-11': 'upgrade-11',
+  'generator-12': 'upgrade-12',
+  'generator-13': 'upgrade-13',
+  'generator-14': 'upgrade-14',
+  'generator-15': 'upgrade-15',
+  'generator-16': 'upgrade-16',
+  'generator-17': 'upgrade-17',
+  'generator-18': 'upgrade-18',
+  'generator-19': 'upgrade-19',
+  'generator-20': 'upgrade-20',
 };
 
 const EFFICIENCY_TIER_COUNT = 5;
+const GENERATOR_ALIAS_COUNT = 20;
 
 function buildEfficiencyAliases() {
   const aliases = {
@@ -27,7 +38,7 @@ function buildEfficiencyAliases() {
     'overdrive': 'global-production-3',
   };
 
-  for (let n = 1; n <= 10; n += 1) {
+  for (let n = 1; n <= GENERATOR_ALIAS_COUNT; n += 1) {
     for (let tier = 1; tier <= EFFICIENCY_TIER_COUNT; tier += 1) {
       aliases[`generator-${n}-efficiency-${tier}`] = `upgrade-${n}-efficiency-${tier}`;
     }
@@ -121,6 +132,26 @@ const MIGRATIONS = [
         next.ascensionTokens = Number.isFinite(Number(next.stars)) ? Math.max(0, Number(next.stars)) : 0;
       }
       delete next.stars;
+      return next;
+    },
+  },
+  {
+    from: 8,
+    to: 9,
+    migrate(state) {
+      const next = normalizeSaveState(state);
+      if (!Array.isArray(next.ownedModifiers)) {
+        next.ownedModifiers = [];
+      }
+      return next;
+    },
+  },
+  {
+    from: 9,
+    to: 10,
+    migrate(state) {
+      const next = normalizeSaveState(state);
+      delete next.ownedModifiers;
       return next;
     },
   },
@@ -252,6 +283,9 @@ export function normalizeSaveState(state) {
   } else {
     next.unlockedAchievements = next.unlockedAchievements.filter((id) => typeof id === 'string');
   }
+
+  // Drop removed modifier system (SAVE_VERSION 10+).
+  delete next.ownedModifiers;
 
   if (next.coinsThisAscension === undefined || next.coinsThisAscension === null) {
     next.coinsThisAscension = next.totalCoinsEarned ?? next.coins ?? '0';

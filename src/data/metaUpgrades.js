@@ -5,11 +5,12 @@ import { buildBaseMultipliers } from './baseMultipliers.js';
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
 const GENERATOR_TIERS = [
-  { owned: 1, costMult: '10' },
+  // Cookie Clicker starts at 1; we skip that so Efficiency I needs a small farm first.
   { owned: 5, costMult: '50' },
   { owned: 25, costMult: '500' },
   { owned: 50, costMult: '5000' },
   { owned: 100, costMult: '50000' },
+  { owned: 200, costMult: '500000' },
 ];
 
 /** Max yellow efficiency pips shown on a store row (one per efficiency tier). */
