@@ -13,14 +13,12 @@ export function getMetaUpgradeConditionText(boost) {
     return UI_TEXT.metaOwnTotal.replace('{count}', String(boost.requiredTotalOwned));
   }
 
-  if (boost.kind === 'click_cps') {
-    return UI_TEXT.metaReachTaps.replace('{count}', formatCoins(boost.requiredClicks));
+  if (boost.kind === 'base_multiplier') {
+    return UI_TEXT.metaReachCoins.replace('{count}', formatCoins(boost.requiredTotalCoins));
   }
 
-  if (boost.kind === 'synergy') {
-    return UI_TEXT.metaOwnPaired
-      .replace('{left}', String(boost.requiredOwnedLeft))
-      .replace('{right}', String(boost.requiredOwnedRight));
+  if (boost.kind === 'click_per_second') {
+    return UI_TEXT.metaReachTaps.replace('{count}', formatCoins(boost.requiredClicks));
   }
 
   return '';
@@ -33,16 +31,13 @@ export function getMetaUpgradeEffectText(boost) {
       .replace('{mult}', String(boost.multiplier));
   }
 
-  if (boost.kind === 'global') {
+  if (boost.kind === 'global' || boost.kind === 'base_multiplier') {
     return UI_TEXT.metaEffectGlobal.replace('{mult}', String(boost.multiplier));
   }
 
-  if (boost.kind === 'click_cps') {
-    return UI_TEXT.metaEffectClickCps.replace('{pct}', String(boost.clickCpsShare * 100));
-  }
-
-  if (boost.kind === 'synergy') {
-    return UI_TEXT.metaEffectSynergy;
+  if (boost.kind === 'click_per_second') {
+    const share = boost.clickPerSecondShare ?? 0;
+    return UI_TEXT.metaEffectClickPerSecond.replace('{pct}', String(share * 100));
   }
 
   return '';

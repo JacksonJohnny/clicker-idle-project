@@ -1,8 +1,15 @@
 import { COLORS } from '../../config/theme.js';
 import { UI_TEXT } from '../../config/uiText.js';
-import { formatCoins, isMetaUpgradeUnlocked, isUpgradeUnlocked } from '../../lib/clickerMath.js';
+import {
+  formatCoins,
+  getGeneratorEfficiencyStarCount,
+  isMetaUpgradeUnlocked,
+  isUpgradeUnlocked,
+} from '../../lib/clickerMath.js';
 import { getMetaUpgradeConditionText, getMetaUpgradeEffectText } from '../../ui/metaUpgradeCopy.js';
 import { getAutoTapEffectLabel } from '../../ui/autoTapCursors.js';
+
+import { PAGE } from './pageNavigation.js';
 
 export function updateStoreListLayout(scene) {
   const { rowHeight, rowGap, listTop } = scene.upgradeLayout;
@@ -15,9 +22,9 @@ export function updateStoreListLayout(scene) {
     const unlocked = isUpgradeUnlocked(upgrade, scene.state.upgrades);
     item.isLockedPreview = !unlocked && item.id === nextLockedUpgrade?.id;
     const visible = unlocked || item.isLockedPreview;
-    const objects = [item.rowBg, item.label, item.info, item.buyButton, item.buyText];
+    const objects = [item.rowBg, item.label, item.level, item.info, ...(item.stars ?? []), item.buyButton, item.buyText];
 
-    objects.forEach((object) => object.setVisible(visible));
+    objects.forEach((object) => object?.setVisible(visible));
     if (item.buyButton.input) {
       item.buyButton.input.enabled = unlocked;
     }
@@ -36,7 +43,7 @@ export function updateMetaListLayout(scene) {
   const { rowHeight, rowGap, listTop } = scene.boostLayout;
   const step = rowHeight + rowGap;
   const visibleBoosts = scene.state.boosts.filter((boost) => isMetaUpgradeUnlocked(scene.state, boost));
-  scene.boostEmptyText.setVisible(scene.activePage === 2 && visibleBoosts.length === 0);
+  scene.boostEmptyText.setVisible(scene.activePage === PAGE.UPGRADE && visibleBoosts.length === 0);
 
   let visibleIndex = 0;
   scene.boostItems.forEach((item) => {
@@ -76,12 +83,14 @@ export function renderStoreRows(scene) {
     const cost = scene.engine.getUpgradeCost(item.id);
     if (item.isLockedPreview) {
       item.label.setText('???');
+      item.level?.setText('').setVisible(false);
       item.info.setText(UI_TEXT.unlockHint);
       item.rowBg.setFillStyle(COLORS.lockedRow, 0.95).setStrokeStyle(2, COLORS.lockedRowBorder);
       item.label.setColor(COLORS.lockedText);
       item.info.setColor(COLORS.lockedInfo);
       item.buyButton.setFillStyle(COLORS.lockedButton).setStrokeStyle(2, COLORS.lockedButtonBorder);
       item.buyText.setText(UI_TEXT.locked).setColor(COLORS.lockedButtonText);
+      item.stars?.forEach((star) => star.setVisible(false));
       return;
     }
 
@@ -95,10 +104,26 @@ export function renderStoreRows(scene) {
 
     item.rowBg.setFillStyle(COLORS.upgradeRow, 0.95).setStrokeStyle(2, COLORS.upgradeRowBorder);
     item.label.setColor(COLORS.upgradeText);
+    item.level?.setColor(COLORS.upgradeText);
     item.info.setColor(COLORS.upgradeInfo);
-    item.label.setText(`${upgrade.label} Lv.${upgrade.level}`);
+    item.label.setText(upgrade.label);
+    item.level?.setText(`Lv.${upgrade.level}`).setVisible(item.rowBg.visible);
     item.info.setText(`${effectLabel}  |  cost ${formatCoins(cost)}`);
     item.buyText.setText(UI_TEXT.buy);
+
+    const starCount = getGeneratorEfficiencyStarCount(scene.state, upgrade.id);
+    const starStartX = item.label.x + item.label.width + 10;
+    item.stars?.forEach((star, index) => {
+      const show = index < starCount && item.rowBg.visible;
+      star.setVisible(show);
+      if (show) {
+        star.x = starStartX + index * 17;
+        // Keep stars left of the level column.
+        if (item.level && star.x + 14 > item.level.x - item.level.width - 8) {
+          star.x = Math.max(starStartX, item.level.x - item.level.width - 8 - (starCount - 1 - index) * 17);
+        }
+      }
+    });
 
     item.buyButton.setFillStyle(canBuy ? COLORS.primary : COLORS.unavailableButton);
     item.buyText.setColor(canBuy ? COLORS.primaryText : COLORS.unavailableText);

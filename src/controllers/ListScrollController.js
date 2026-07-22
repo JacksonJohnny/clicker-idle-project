@@ -5,7 +5,13 @@ function defaultSyncItem(item, y, layout) {
   const { rowHeight } = layout;
   item.rowBg.y = y;
   item.label.y = y - rowHeight * 0.22;
+  if (item.level) {
+    item.level.y = y - rowHeight * 0.22;
+  }
   item.info.y = y + rowHeight * 0.22;
+  item.stars?.forEach((star) => {
+    star.y = y - rowHeight * 0.22; // efficiency pips (not Ascension Tokens)
+  });
   item.buyButton.y = y;
   item.buyText.y = y;
 }

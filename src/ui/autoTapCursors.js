@@ -31,7 +31,6 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
   const cursors = [];
   const pulls = [];
   const maxSlots = getMaxAutoTapCursorSlots();
-  let nextClickIndex = 0;
 
   function layoutForIndex(index) {
     let remaining = index;
@@ -82,12 +81,6 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
       cursor.destroy();
     }
 
-    if (cursors.length > 0) {
-      nextClickIndex %= cursors.length;
-    } else {
-      nextClickIndex = 0;
-    }
-
     cursors.forEach((cursor) => cursor.setVisible(count > 0));
   }
 
@@ -113,6 +106,20 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
     });
   }
 
+  // Stable clockwise order by angle (inner before outer at the same angle).
+  // Avoids ring-fill index order, which finishes the whole inner ring before the outer
+  // and wraps mid-wave when nextClickIndex continues across intervals.
+  function getClockwiseOrder() {
+    return cursors
+      .map((_, index) => {
+        const { slot, capacity, ring } = layoutForIndex(index);
+        const angle = (slot / capacity) * Math.PI * 2;
+        return { index, angle, ring };
+      })
+      .sort((a, b) => a.angle - b.angle || a.ring - b.ring)
+      .map((entry) => entry.index);
+  }
+
   // Cookie Clicker style: jab toward the button, one cursor at a time, clockwise.
   function playClicks(tapCount = 1, onEachClick) {
     if (cursors.length === 0 || tapCount <= 0) {
@@ -120,9 +127,11 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
     }
 
     const total = Math.max(1, tapCount | 0);
+    const order = getClockwiseOrder();
 
     for (let i = 0; i < total; i += 1) {
-      const index = (nextClickIndex + i) % cursors.length;
+      // Always start from the same angular position each wave.
+      const index = order[i % order.length];
       const pull = pulls[index];
       const delay = i * 110;
       scene.tweens.killTweensOf(pull);
@@ -139,8 +148,6 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
         },
       });
     }
-
-    nextClickIndex = (nextClickIndex + total) % cursors.length;
   }
 
   return { layer, updateOrbit, sync, playClicks, maxSlots };

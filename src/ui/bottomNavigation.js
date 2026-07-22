@@ -13,7 +13,12 @@ export function buildBottomNavigation({ scene, navTop, navHeight, onSelect }) {
     const indicator = scene.add.rectangle(x, navTop + 6, tabWidth - 24, 4, COLORS.navIndicator).setOrigin(0.5, 0);
     const hitArea = scene.add.zone(x, navTop + navHeight / 2, tabWidth, navHeight).setInteractive({ useHandCursor: true });
     const text = scene.add
-      .text(x, navTop + 47, label, { fontFamily: FONT_FAMILIES.body, fontSize: '18px', color: COLORS.inactiveText, fontStyle: '800' })
+      .text(x, navTop + 47, label, {
+        fontFamily: FONT_FAMILIES.body,
+        fontSize: UI_TEXT.tabs.length > 3 ? '13px' : '18px',
+        color: COLORS.inactiveText,
+        fontStyle: '800',
+      })
       .setOrigin(0.5);
     hitArea.on('pointerup', () => onSelect(index));
     container.add([indicator, hitArea, text]);

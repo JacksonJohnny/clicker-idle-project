@@ -3,6 +3,7 @@ import { COLORS } from '../../config/theme.js';
 import { formatCoins, getAutoTapCursorCount } from '../../lib/clickerMath.js';
 import { getAutoTapCursorMultiplier } from '../../lib/autoTapProgress.js';
 import { showOfflineReturn } from './overlays.js';
+import { PAGE } from './pageNavigation.js';
 
 export function applyWallClockProgress(scene, options = {}) {
   const nowMs = Date.now();
@@ -17,13 +18,17 @@ export function applyWallClockProgress(scene, options = {}) {
     return;
   }
 
-  const cappedSeconds = Math.min(elapsedMs / 1000, LOOP_CONFIG.maxOfflineSeconds);
+  const elapsedSeconds = elapsedMs / 1000;
+  const cappedSeconds =
+    Number.isFinite(LOOP_CONFIG.maxOfflineSeconds) && LOOP_CONFIG.maxOfflineSeconds > 0
+      ? Math.min(elapsedSeconds, LOOP_CONFIG.maxOfflineSeconds)
+      : elapsedSeconds;
   scene.lastProgressAtMs = nowMs;
 
   const gain = scene.engine.tick(cappedSeconds);
   const autoTaps = scene.state.lastAutoTaps ?? 0;
 
-  if (autoTaps > 0 && scene.activePage === 1) {
+  if (autoTaps > 0 && scene.activePage === PAGE.TAP) {
     const autoTapLevel = getAutoTapCursorCount(scene.state);
     scene.autoTapCursors.playClicks(autoTaps, (cursorIndex, tapIndex) => {
       scene.tapButtonVisuals.forEach((object) => object.setScale(0.94));

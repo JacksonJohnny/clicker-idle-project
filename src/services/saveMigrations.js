@@ -15,9 +15,10 @@ export const UPGRADE_ID_ALIASES = {
   'generator-7': 'upgrade-7',
   'generator-8': 'upgrade-8',
   'generator-9': 'upgrade-9',
+  'generator-10': 'upgrade-10',
 };
 
-const EFFICIENCY_TIER_COUNT = 4;
+const EFFICIENCY_TIER_COUNT = 5;
 
 function buildEfficiencyAliases() {
   const aliases = {
@@ -26,14 +27,18 @@ function buildEfficiencyAliases() {
     'overdrive': 'global-production-3',
   };
 
-  for (let n = 1; n <= 9; n += 1) {
+  for (let n = 1; n <= 10; n += 1) {
     for (let tier = 1; tier <= EFFICIENCY_TIER_COUNT; tier += 1) {
       aliases[`generator-${n}-efficiency-${tier}`] = `upgrade-${n}-efficiency-${tier}`;
     }
-    // Synergy ids built while generators were briefly named generator-N
-    if (n < 9) {
-      aliases[`synergy-generator-${n}-generator-${n + 1}`] = `synergy-upgrade-${n}-upgrade-${n + 1}`;
-    }
+  }
+
+  for (let tier = 1; tier <= 5; tier += 1) {
+    aliases[`cps-tap-${tier}`] = `click-per-second-tap-${tier}`;
+  }
+
+  for (let n = 1; n <= 20; n += 1) {
+    aliases[`geral-upgrade-${n}`] = `base-multiplier-${n}`;
   }
 
   return aliases;
@@ -74,6 +79,49 @@ const MIGRATIONS = [
     migrate(state) {
       // Roll back brief generator-N rename → stable upgrade-N ids, then re-grant stars.
       return compensateLegacyMilestoneStars(normalizeSaveState(state));
+    },
+  },
+  {
+    from: 5,
+    to: 6,
+    migrate(state) {
+      const next = normalizeSaveState(state);
+      if (next.totalCoinsEarned === undefined && next.coins !== undefined) {
+        next.totalCoinsEarned = next.coins;
+      }
+      return next;
+    },
+  },
+  {
+    from: 6,
+    to: 7,
+    migrate(state) {
+      const next = normalizeSaveState(state);
+      if (next.coinsThisAscension === undefined) {
+        next.coinsThisAscension = next.totalCoinsEarned ?? next.coins ?? '0';
+      }
+      if (next.stars === undefined) {
+        next.stars = 0;
+      }
+      if (next.prestigeCount === undefined) {
+        next.prestigeCount = 0;
+      }
+      if (!Array.isArray(next.unlockedAchievements)) {
+        next.unlockedAchievements = [];
+      }
+      return next;
+    },
+  },
+  {
+    from: 7,
+    to: 8,
+    migrate(state) {
+      const next = normalizeSaveState(state);
+      if (next.ascensionTokens === undefined) {
+        next.ascensionTokens = Number.isFinite(Number(next.stars)) ? Math.max(0, Number(next.stars)) : 0;
+      }
+      delete next.stars;
+      return next;
     },
   },
 ];
@@ -186,6 +234,32 @@ export function normalizeSaveState(state) {
     : 0;
   next.upgrades = dedupeUpgrades(remapIds(next.upgrades, UPGRADE_ID_ALIASES).filter((entry) => entry?.id));
   next.boosts = dedupeBoosts(remapIds(next.boosts, BOOST_ID_ALIASES).filter((entry) => entry?.id));
+
+  // Prestige currency rename: stars (v7) → ascensionTokens (v8+). Keep both paths safe.
+  const fromTokens = Number.isFinite(Number(next.ascensionTokens)) ? Math.max(0, Number(next.ascensionTokens)) : null;
+  const fromStars = Number.isFinite(Number(next.stars)) ? Math.max(0, Number(next.stars)) : null;
+  next.ascensionTokens = fromTokens ?? fromStars ?? 0;
+  delete next.stars;
+
+  if (next.prestigeCount === undefined || !Number.isFinite(Number(next.prestigeCount))) {
+    next.prestigeCount = 0;
+  } else {
+    next.prestigeCount = Math.max(0, Number(next.prestigeCount));
+  }
+
+  if (!Array.isArray(next.unlockedAchievements)) {
+    next.unlockedAchievements = [];
+  } else {
+    next.unlockedAchievements = next.unlockedAchievements.filter((id) => typeof id === 'string');
+  }
+
+  if (next.coinsThisAscension === undefined || next.coinsThisAscension === null) {
+    next.coinsThisAscension = next.totalCoinsEarned ?? next.coins ?? '0';
+  }
+
+  if (next.totalCoinsEarned === undefined || next.totalCoinsEarned === null) {
+    next.totalCoinsEarned = next.coins ?? '0';
+  }
 
   if (next.savedAt !== undefined && next.savedAt !== null) {
     const savedAt = Number(next.savedAt);

@@ -4,7 +4,7 @@ const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.
 
 export const SAVE_KEY = env.VITE_SAVE_KEY || 'clicker-phaser-save-v1';
 export const LEGACY_SAVE_KEYS = [];
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 8;
 export const SCENE_KEY = 'clicker-scene';
 export const APP_ID = env.VITE_APP_ID || 'com.clickergame.app';
 
@@ -14,7 +14,8 @@ export const GAME_CONFIG = {
   backgroundColor: '#111822',
 };
 
+/** null = no offline earnings cap */
 export const LOOP_CONFIG = {
   autoSaveDelayMs: 10000,
-  maxOfflineSeconds: 8 * 60 * 60,
+  maxOfflineSeconds: null,
 };

@@ -1,3 +1,5 @@
+import { PAGE } from './pageNavigation.js';
+
 export function createHoldBuyController(scene) {
   function stopUpgradeHold(pointerId = null) {
     if (!scene.upgradeHold) {
@@ -23,7 +25,7 @@ export function createHoldBuyController(scene) {
   }
 
   function runUpgradeHold() {
-    if (!scene.upgradeHold || scene.activePage !== 0 || !scene.gameStarted) {
+    if (!scene.upgradeHold || scene.activePage !== PAGE.STORE || !scene.gameStarted) {
       stopUpgradeHold();
       return;
     }

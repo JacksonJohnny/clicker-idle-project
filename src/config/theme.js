@@ -63,6 +63,9 @@ export const COLORS = {
   overlayMutedText: '#79a8c5',
   startOverlay: 0x0a1119,
   startStroke: '#255d85',
+  /** Prestige currency icon (filled square beside the label). */
+  ascensionToken: 0x8b5cf6,
+  ascensionTokenBorder: 0xc4b5fd,
 };
 
 export const UI_LAYOUT = {

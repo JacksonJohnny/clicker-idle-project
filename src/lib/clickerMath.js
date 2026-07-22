@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js';
 import { AUTO_TAP_INTERVAL_SECONDS } from '../data/upgrades.js';
+import { ACHIEVEMENTS, getAchievementIdleMultiplier } from '../data/achievements.js';
+import { calculateAscensionTokenGain, getAscensionTokenIdleMultiplier } from './prestige.js';
 import {
   BOOST_ID_ALIASES,
   UPGRADE_ID_ALIASES,
@@ -24,13 +26,14 @@ import { getAutoTapCursorTier, getMaxAutoTapCursorSlots } from './autoTapProgres
  * @typedef {object} MetaUpgradeCatalogEntry
  * @property {string} id
  * @property {string} name
- * @property {'generator'|'global'|'click_cps'|'synergy'} kind
+ * @property {'generator'|'global'|'click_per_second'|'base_multiplier'} kind
  * @property {boolean} [purchased]
  */
 
 /**
  * @typedef {object} SaveSnapshot
  * @property {string|number} coins
+ * @property {string|number} [totalCoinsEarned]
  * @property {number} totalClicks
  * @property {number} [autoTapProgress]
  * @property {{ id: string, level: number }[]} [upgrades]
@@ -172,15 +175,12 @@ export function isMetaUpgradeUnlocked(state, boost) {
     return getTotalGeneratorOwned(state) >= boost.requiredTotalOwned;
   }
 
-  if (boost.kind === 'click_cps') {
-    return state.totalClicks >= boost.requiredClicks;
+  if (boost.kind === 'base_multiplier') {
+    return toDecimal(state.totalCoinsEarned).gte(boost.requiredTotalCoins);
   }
 
-  if (boost.kind === 'synergy') {
-    return (
-      getUpgradeLevel(state, boost.leftId) >= boost.requiredOwnedLeft &&
-      getUpgradeLevel(state, boost.rightId) >= boost.requiredOwnedRight
-    );
+  if (boost.kind === 'click_per_second') {
+    return state.totalClicks >= boost.requiredClicks;
   }
 
   return false;
@@ -190,25 +190,23 @@ function getPurchasedBoosts(boosts) {
   return boosts.filter((boost) => boost.purchased);
 }
 
+/** Yellow store efficiency pips: one per purchased generator efficiency meta-upgrade. */
+export function getGeneratorEfficiencyStarCount(state, generatorId) {
+  if (!state?.boosts || !generatorId) {
+    return 0;
+  }
+
+  return getPurchasedBoosts(state.boosts).filter(
+    (boost) => boost.kind === 'generator' && boost.targetId === generatorId,
+  ).length;
+}
+
 function getGeneratorProductionMultiplier(state, generatorId) {
   let multiplier = new Decimal(1);
 
   getPurchasedBoosts(state.boosts).forEach((boost) => {
     if (boost.kind === 'generator' && boost.targetId === generatorId) {
       multiplier = multiplier.times(toDecimal(boost.multiplier));
-      return;
-    }
-
-    if (boost.kind !== 'synergy') {
-      return;
-    }
-
-    if (boost.leftId === generatorId) {
-      multiplier = multiplier.times(new Decimal(1).plus(toDecimal(boost.leftBonusPerRight).times(getUpgradeLevel(state, boost.rightId))));
-    }
-
-    if (boost.rightId === generatorId) {
-      multiplier = multiplier.times(new Decimal(1).plus(toDecimal(boost.rightBonusPerLeft).times(getUpgradeLevel(state, boost.leftId))));
     }
   });
 
@@ -236,27 +234,39 @@ function calculateStats(state) {
       return sum.plus(toDecimal(upgrade.baseValue).times(upgrade.level).times(generatorMult));
     }, new Decimal(0));
 
-  const productionMultiplier = getPurchasedBoosts(state.boosts)
-    .filter((boost) => boost.kind === 'global')
+  const metaMultiplier = getPurchasedBoosts(state.boosts)
+    .filter((boost) => boost.kind === 'global' || boost.kind === 'base_multiplier')
     .reduce((multiplier, boost) => multiplier.times(toDecimal(boost.multiplier)), new Decimal(1));
+
+  const achievementMultiplier = getAchievementIdleMultiplier(state.unlockedAchievements ?? []);
+  const ascensionTokensMultiplier = getAscensionTokenIdleMultiplier(state.ascensionTokens ?? 0);
+  const productionMultiplier = metaMultiplier.times(achievementMultiplier).times(ascensionTokensMultiplier);
 
   const perSecond = autoRate.times(productionMultiplier);
 
-  const clickCpsShare = getPurchasedBoosts(state.boosts)
-    .filter((boost) => boost.kind === 'click_cps')
-    .reduce((sum, boost) => sum.plus(toDecimal(boost.clickCpsShare)), new Decimal(0));
+  const clickPerSecondShare = getPurchasedBoosts(state.boosts)
+    .filter((boost) => boost.kind === 'click_per_second')
+    .reduce((sum, boost) => sum.plus(toDecimal(boost.clickPerSecondShare ?? 0)), new Decimal(0));
 
   return {
-    perClick: new Decimal(1).plus(clickExtra).plus(perSecond.times(clickCpsShare)),
+    perClick: new Decimal(1).plus(clickExtra).plus(perSecond.times(clickPerSecondShare)),
     perSecond,
     productionMultiplier,
+    metaMultiplier,
+    achievementMultiplier,
+    ascensionTokensMultiplier,
   };
 }
 
 function createInitialState(upgrades, boosts = []) {
   const state = {
     coins: new Decimal(0),
+    totalCoinsEarned: new Decimal(0),
+    coinsThisAscension: new Decimal(0),
     totalClicks: 0,
+    ascensionTokens: 0,
+    prestigeCount: 0,
+    unlockedAchievements: [],
     perClick: new Decimal(1),
     perSecond: new Decimal(0),
     autoTapProgress: 0,
@@ -266,6 +276,42 @@ function createInitialState(upgrades, boosts = []) {
   };
 
   return recalculateState(state);
+}
+
+function syncAchievements(state) {
+  const unlocked = new Set(state.unlockedAchievements ?? []);
+  let changed = false;
+
+  ACHIEVEMENTS.forEach((achievement) => {
+    if (unlocked.has(achievement.id)) {
+      return;
+    }
+    try {
+      if (achievement.check(state)) {
+        unlocked.add(achievement.id);
+        changed = true;
+      }
+    } catch {
+      // Ignore bad checks against partial state.
+    }
+  });
+
+  state.unlockedAchievements = [...unlocked];
+  if (changed) {
+    recalculateState(state);
+  }
+  return changed;
+}
+
+function creditCoins(state, amount) {
+  const gain = toDecimal(amount);
+  if (gain.lte(0)) {
+    return gain;
+  }
+  state.coins = state.coins.plus(gain);
+  state.totalCoinsEarned = toDecimal(state.totalCoinsEarned).plus(gain);
+  state.coinsThisAscension = toDecimal(state.coinsThisAscension).plus(gain);
+  return gain;
 }
 
 function recalculateState(state) {
@@ -324,6 +370,23 @@ function mergeStateFromSave(state, loaded) {
   const normalized = compensateLegacyMilestoneStars(normalizeSaveState(loaded));
 
   state.coins = normalized.coins !== undefined ? toDecimal(normalized.coins) : state.coins;
+  state.totalCoinsEarned =
+    normalized.totalCoinsEarned !== undefined
+      ? toDecimal(normalized.totalCoinsEarned)
+      : Decimal.max(state.totalCoinsEarned, state.coins);
+  state.coinsThisAscension =
+    normalized.coinsThisAscension !== undefined
+      ? toDecimal(normalized.coinsThisAscension)
+      : toDecimal(state.totalCoinsEarned);
+  state.ascensionTokens = Number.isFinite(Number(normalized.ascensionTokens))
+    ? Math.max(0, Number(normalized.ascensionTokens))
+    : state.ascensionTokens;
+  state.prestigeCount = Number.isFinite(Number(normalized.prestigeCount))
+    ? Math.max(0, Number(normalized.prestigeCount))
+    : state.prestigeCount;
+  state.unlockedAchievements = Array.isArray(normalized.unlockedAchievements)
+    ? normalized.unlockedAchievements.filter((id) => typeof id === 'string')
+    : state.unlockedAchievements;
   state.totalClicks = Number.isFinite(Number(normalized.totalClicks)) ? Number(normalized.totalClicks) : state.totalClicks;
   state.autoTapProgress = Number.isFinite(Number(normalized.autoTapProgress))
     ? Math.max(0, Number(normalized.autoTapProgress))
@@ -350,7 +413,9 @@ function mergeStateFromSave(state, loaded) {
     return { ...boost, purchased: boost.purchased || granted?.purchased === true };
   });
 
-  return recalculateState(state);
+  recalculateState(state);
+  syncAchievements(state);
+  return state;
 }
 
 function buyUpgrade(state, upgradeId) {
@@ -380,7 +445,7 @@ function buyUpgrade(state, upgradeId) {
   };
 }
 
-function buyBoost(state, boostId) {
+function buyMetaUpgrade(state, boostId) {
   const boost = state.boosts.find((item) => item.id === boostId);
 
   if (!boost || boost.purchased) {
@@ -411,8 +476,7 @@ function applyAutoIncome(state, seconds = 1) {
   }
 
   const gain = state.perSecond.times(safeSeconds);
-  state.coins = state.coins.plus(gain);
-  return gain;
+  return creditCoins(state, gain);
 }
 
 function getAutoTapLevel(state) {
@@ -460,6 +524,8 @@ function applyAutoTaps(state, seconds = 1, intervalSeconds = AUTO_TAP_INTERVAL_S
   const whiteClickEquivalents = getAutoTapWaveWhiteEquivalents(level).times(waves);
   const gain = state.perClick.times(whiteClickEquivalents);
   state.coins = state.coins.plus(gain);
+  state.totalCoinsEarned = toDecimal(state.totalCoinsEarned).plus(gain);
+  state.coinsThisAscension = toDecimal(state.coinsThisAscension).plus(gain);
   state.totalClicks += Number(whiteClickEquivalents.toFixed(0));
 
   return { gain, taps };
@@ -478,7 +544,7 @@ function toTimestampMs(value) {
   return null;
 }
 
-function applyOfflineProgress(state, lastSavedAt, nowMs = Date.now(), maxOfflineSeconds = 8 * 60 * 60) {
+function applyOfflineProgress(state, lastSavedAt, nowMs = Date.now(), maxOfflineSeconds = Number.POSITIVE_INFINITY) {
   const savedAtMs = toTimestampMs(lastSavedAt);
 
   if (!savedAtMs || nowMs <= savedAtMs) {
@@ -486,9 +552,13 @@ function applyOfflineProgress(state, lastSavedAt, nowMs = Date.now(), maxOffline
   }
 
   const elapsedSeconds = Math.floor((nowMs - savedAtMs) / 1000);
-  const cappedSeconds = Math.max(0, Math.min(elapsedSeconds, maxOfflineSeconds));
+  const cappedSeconds =
+    Number.isFinite(maxOfflineSeconds) && maxOfflineSeconds > 0
+      ? Math.max(0, Math.min(elapsedSeconds, maxOfflineSeconds))
+      : Math.max(0, elapsedSeconds);
   const income = applyAutoIncome(state, cappedSeconds);
   const autoTaps = applyAutoTaps(state, cappedSeconds);
+  syncAchievements(state);
 
   return {
     gain: income.plus(autoTaps.gain),
@@ -496,10 +566,34 @@ function applyOfflineProgress(state, lastSavedAt, nowMs = Date.now(), maxOffline
   };
 }
 
+function runPrestige(state) {
+  const tokensGained = calculateAscensionTokenGain(state.coinsThisAscension);
+  if (tokensGained <= 0) {
+    return { ok: false, reason: 'no-tokens', tokensGained: 0 };
+  }
+
+  state.ascensionTokens = (state.ascensionTokens | 0) + tokensGained;
+  state.prestigeCount = (state.prestigeCount | 0) + 1;
+  state.coins = new Decimal(0);
+  state.coinsThisAscension = new Decimal(0);
+  state.autoTapProgress = 0;
+  state.lastAutoTaps = 0;
+  state.upgrades = state.upgrades.map((upgrade) => ({ ...upgrade, level: 0 }));
+  state.boosts = state.boosts.map((boost) => ({ ...boost, purchased: false }));
+  recalculateState(state);
+  syncAchievements(state);
+  return { ok: true, tokensGained, ascensionTokens: state.ascensionTokens };
+}
+
 function serializeState(state) {
   return {
     coins: state.coins.toString(),
+    totalCoinsEarned: toDecimal(state.totalCoinsEarned).toString(),
+    coinsThisAscension: toDecimal(state.coinsThisAscension).toString(),
     totalClicks: state.totalClicks,
+    ascensionTokens: state.ascensionTokens | 0,
+    prestigeCount: state.prestigeCount | 0,
+    unlockedAchievements: [...(state.unlockedAchievements ?? [])],
     autoTapProgress: state.autoTapProgress ?? 0,
     upgrades: state.upgrades.map((upgrade) => ({ id: upgrade.id, level: upgrade.level })),
     boosts: state.boosts.map((boost) => ({ id: boost.id, purchased: boost.purchased })),
@@ -514,32 +608,63 @@ export function createClickerController(upgrades, boosts = []) {
     state,
     hydrate(saveData, options = {}) {
       const nowMs = options.nowMs ?? Date.now();
-      const maxOfflineSeconds = options.maxOfflineSeconds ?? 8 * 60 * 60;
+      const maxOfflineSeconds = options.maxOfflineSeconds ?? Number.POSITIVE_INFINITY;
 
       mergeStateFromSave(state, saveData);
+      syncAchievements(state);
 
       const offline = applyOfflineProgress(state, saveData?.savedAt, nowMs, maxOfflineSeconds);
+      syncAchievements(state);
       return offline;
     },
     tap() {
-      state.coins = state.coins.plus(state.perClick);
+      creditCoins(state, state.perClick);
       state.totalClicks += 1;
+      syncAchievements(state);
       return state.perClick;
     },
     tick(seconds = 1) {
       const income = applyAutoIncome(state, seconds);
       const autoTaps = applyAutoTaps(state, seconds);
       state.lastAutoTaps = autoTaps.taps;
+      syncAchievements(state);
       return income.plus(autoTaps.gain);
     },
     tryBuyUpgrade(upgradeId) {
-      return buyUpgrade(state, upgradeId);
-    },
-    tryBuyBoost(boostId) {
-      return buyBoost(state, boostId);
+      const result = buyUpgrade(state, upgradeId);
+      if (result.ok) {
+        syncAchievements(state);
+      }
+      return result;
     },
     tryBuyMetaUpgrade(boostId) {
-      return buyBoost(state, boostId);
+      const result = buyMetaUpgrade(state, boostId);
+      if (result.ok) {
+        syncAchievements(state);
+      }
+      return result;
+    },
+    tryPrestige() {
+      return runPrestige(state);
+    },
+    getMultiplierBreakdown() {
+      const stats = calculateStats(state);
+      return {
+        metaMultiplier: stats.metaMultiplier,
+        achievementMultiplier: stats.achievementMultiplier,
+        ascensionTokensMultiplier: stats.ascensionTokensMultiplier,
+        productionMultiplier: stats.productionMultiplier,
+        ascensionTokens: state.ascensionTokens | 0,
+      };
+    },
+    getPrestigePreview() {
+      return {
+        ascensionTokens: state.ascensionTokens | 0,
+        ascensionTokensGain: calculateAscensionTokenGain(state.coinsThisAscension),
+        ascensionTokensMultiplier: getAscensionTokenIdleMultiplier(state.ascensionTokens | 0),
+        achievementMultiplier: getAchievementIdleMultiplier(state.unlockedAchievements ?? []),
+        prestigeCount: state.prestigeCount | 0,
+      };
     },
     getUpgradeCost(upgradeId) {
       const upgrade = state.upgrades.find((item) => item.id === upgradeId);

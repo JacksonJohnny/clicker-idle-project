@@ -31,7 +31,7 @@ describe('saveMigrations', () => {
       1,
     );
 
-    expect(version).toBe(5);
+    expect(version).toBe(8);
     expect(state.coins).toBe(99);
     expect(state.upgrades[0].level).toBe(2);
   });
@@ -73,11 +73,87 @@ describe('saveMigrations', () => {
       2,
     );
 
-    expect(version).toBe(5);
+    expect(version).toBe(8);
     expect(state.boosts).toEqual(
       expect.arrayContaining([
         { id: 'upgrade-2-efficiency-1', purchased: true },
         { id: 'global-production-1', purchased: true },
+      ]),
+    );
+  });
+
+  it('renames stars to ascensionTokens on v7→v8', () => {
+    const { state, version } = migrateSaveState(
+      {
+        coins: '1',
+        stars: 12,
+        prestigeCount: 2,
+        coinsThisAscension: '0',
+        unlockedAchievements: [],
+      },
+      7,
+    );
+
+    expect(version).toBe(8);
+    expect(state.ascensionTokens).toBe(12);
+    expect(state.stars).toBeUndefined();
+  });
+
+  it('normalize maps stars even without running migrations', () => {
+    const normalized = normalizeSaveState({
+      coins: '10',
+      stars: 7,
+      upgrades: [],
+    });
+
+    expect(normalized.ascensionTokens).toBe(7);
+    expect(normalized.stars).toBeUndefined();
+    expect(normalized.prestigeCount).toBe(0);
+    expect(normalized.unlockedAchievements).toEqual([]);
+    expect(normalized.coinsThisAscension).toBe('10');
+  });
+
+  it('preserves full progress when migrating a rich v6 save to v8', () => {
+    const { state, version } = migrateSaveState(
+      {
+        coins: '500000',
+        totalCoinsEarned: '900000',
+        totalClicks: 250,
+        upgrades: [
+          { id: 'tap-power', level: 5 },
+          { id: 'auto-tap', level: 3 },
+          { id: 'upgrade-1', level: 40 },
+          { id: 'upgrade-2', level: 10 },
+        ],
+        boosts: [
+          { id: 'upgrade-1-efficiency-1', purchased: true },
+          { id: 'first-surge', purchased: true },
+          { id: 'geral-upgrade-1', purchased: true },
+        ],
+        savedAt: 1_700_000_000_000,
+      },
+      6,
+    );
+
+    expect(version).toBe(8);
+    expect(state.coins).toBe('500000');
+    expect(state.totalCoinsEarned).toBe('900000');
+    expect(state.coinsThisAscension).toBe('900000');
+    expect(state.ascensionTokens).toBe(0);
+    expect(state.prestigeCount).toBe(0);
+    expect(state.upgrades).toEqual(
+      expect.arrayContaining([
+        { id: 'upgrade-1', level: 40 },
+        { id: 'upgrade-2', level: 10 },
+      ]),
+    );
+    expect(state.boosts).toEqual(
+      expect.arrayContaining([
+        { id: 'upgrade-1-efficiency-1', purchased: true },
+        { id: 'upgrade-1-efficiency-2', purchased: true },
+        { id: 'upgrade-2-efficiency-1', purchased: true },
+        { id: 'global-production-1', purchased: true },
+        { id: 'base-multiplier-1', purchased: true },
       ]),
     );
   });

@@ -129,8 +129,14 @@ export function loadGameState() {
     }
 
     const migrated = migrateSaveState(loaded.state, loaded.version);
+    const hadLegacyStars = loaded.state?.stars !== undefined;
+    const needsRewrite =
+      loaded.sourceKey !== SAVE_KEY ||
+      loaded.version !== SAVE_VERSION ||
+      !loaded.verified ||
+      hadLegacyStars;
 
-    if (loaded.sourceKey !== SAVE_KEY || loaded.version !== SAVE_VERSION || !loaded.verified) {
+    if (needsRewrite) {
       saveGameState(migrated.state);
       if (loaded.sourceKey !== SAVE_KEY) {
         storageRemoveItem(loaded.sourceKey);

@@ -1,4 +1,5 @@
 import { COLORS, FONT_FAMILIES } from '../config/theme.js';
+import { GENERATOR_EFFICIENCY_STAR_MAX } from '../data/metaUpgrades.js';
 
 export function buildUpgradeListView({ scene, container, upgrades, layout, onPointerDown, onPointerUp }) {
   const { rowHeight, rowGap, compactRows, listTop } = layout;
@@ -9,7 +10,10 @@ export function buildUpgradeListView({ scene, container, upgrades, layout, onPoi
   const buyButtonWidth = compactRows ? 130 : 146;
   const buyButtonHeight = compactRows ? 48 : 56;
   const buyButtonX = scene.scale.width - buyButtonWidth / 2 - 34;
+  // Fixed column just left of BUY — levels scan as one vertical line.
+  const levelX = buyButtonX - buyButtonWidth / 2 - 14;
   const buyFontSize = compactRows ? '18px' : '20px';
+  const starFontSize = compactRows ? '14px' : '15px';
 
   return upgrades.map((upgrade, index) => {
     const y = startY + index * step;
@@ -22,6 +26,24 @@ export function buildUpgradeListView({ scene, container, upgrades, layout, onPoi
         fontStyle: '700',
       })
       .setOrigin(0, 0.5);
+    const level = scene.add
+      .text(levelX, y - rowHeight * 0.22, '', {
+        fontFamily: FONT_FAMILIES.body,
+        fontSize: labelFontSize,
+        color: '#f4f7fa',
+        fontStyle: '700',
+      })
+      .setOrigin(1, 0.5);
+    const stars = Array.from({ length: GENERATOR_EFFICIENCY_STAR_MAX }, () =>
+      scene.add
+        .text(0, y - rowHeight * 0.22, '★', {
+          fontFamily: 'Arial, "Segoe UI Symbol", sans-serif',
+          fontSize: starFontSize,
+          color: '#ffd43b',
+        })
+        .setOrigin(0, 0.5)
+        .setVisible(false),
+    );
     const info = scene.add
       .text(38, y + rowHeight * 0.22, '', {
         fontFamily: FONT_FAMILIES.body,
@@ -52,8 +74,8 @@ export function buildUpgradeListView({ scene, container, upgrades, layout, onPoi
       onPointerUp(upgrade, pointer, moved);
     });
 
-    const item = { id: upgrade.id, baseY: y, rowBg, label, info, buyButton, buyText };
-    container.add([rowBg, label, info, buyButton, buyText]);
+    const item = { id: upgrade.id, baseY: y, rowBg, label, level, info, stars, buyButton, buyText };
+    container.add([rowBg, label, level, info, ...stars, buyButton, buyText]);
     return item;
   });
 }

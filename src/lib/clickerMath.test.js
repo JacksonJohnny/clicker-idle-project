@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { META_UPGRADES } from '../data/metaUpgrades.js';
 import { CLICKER_GENERATORS } from '../data/generators.js';
 import { CLICK_UPGRADES } from '../data/upgrades.js';
-import { createClickerController, formatCoins, isUpgradeUnlocked } from './clickerMath.js';
+import { createClickerController, formatCoins, getGeneratorEfficiencyStarCount, isUpgradeUnlocked } from './clickerMath.js';
 
 const createController = () => createClickerController([...CLICK_UPGRADES, ...CLICKER_GENERATORS], META_UPGRADES);
 
@@ -52,7 +52,8 @@ describe('clickerMath', () => {
     const result = controller.tryBuyUpgrade('upgrade-1');
 
     expect(result.ok).toBe(true);
-    expect(controller.state.perSecond.toString()).toBe('10');
+    // Own 10 G1 unlocks Starter Pack (+1% idle)
+    expect(controller.state.perSecond.toString()).toBe('10.1');
   });
 
   it('restores efficiency meta upgrades from aliased generator ids and star thresholds', () => {
@@ -77,11 +78,14 @@ describe('clickerMath', () => {
     });
 
     expect(controller.state.perSecond.toString()).toBe('1');
-    expect(controller.tryBuyBoost('upgrade-1-efficiency-1')).toMatchObject({ ok: true });
-    expect(controller.state.perSecond.toString()).toBe('2');
+    expect(getGeneratorEfficiencyStarCount(controller.state, 'upgrade-1')).toBe(0);
+    expect(controller.tryBuyMetaUpgrade('upgrade-1-efficiency-1')).toMatchObject({ ok: true });
+    // ×2 efficiency +1% achievement (Tuned Up)
+    expect(controller.state.perSecond.toString()).toBe('2.02');
+    expect(getGeneratorEfficiencyStarCount(controller.state, 'upgrade-1')).toBe(1);
   });
 
-  it('applies global production and click CPS meta upgrades', () => {
+  it('applies global production and Clicks per second tap meta upgrades', () => {
     const controller = createController();
     controller.hydrate({
       coins: '100000000',
@@ -89,27 +93,12 @@ describe('clickerMath', () => {
       upgrades: [{ id: 'upgrade-1', level: 25 }],
     });
 
-    expect(controller.tryBuyBoost('global-production-1')).toMatchObject({ ok: true });
-    // level 25 → star efficiencies ×4, then global ×1.05 → 25 * 4 * 1.05 = 105
-    expect(controller.state.perSecond.toString()).toBe('105');
+    expect(controller.tryBuyMetaUpgrade('global-production-1')).toMatchObject({ ok: true });
+    // 25*4*1.05=105; achievements +4% (taps100, own10, efficiency, coins1m) → 109.2
+    expect(controller.state.perSecond.toString()).toBe('109.2');
 
-    expect(controller.tryBuyBoost('cps-tap-1')).toMatchObject({ ok: true });
-    expect(controller.state.perClick.toString()).toBe('2.05');
-  });
-
-  it('applies synergy bonuses between paired generators', () => {
-    const controller = createController();
-    controller.hydrate({
-      coins: '100000000',
-      upgrades: [
-        { id: 'upgrade-1', level: 15 },
-        { id: 'upgrade-2', level: 15 },
-      ],
-    });
-
-    expect(controller.tryBuyBoost('synergy-upgrade-1-upgrade-2')).toMatchObject({ ok: true });
-    // Each gen has 1 star efficiency (×2) from owned 10; synergy on top → 296.1
-    expect(controller.state.perSecond.toString()).toBe('296.1');
+    expect(controller.tryBuyMetaUpgrade('click-per-second-tap-1')).toMatchObject({ ok: true });
+    expect(controller.state.perClick.toString()).toBe('2.092');
   });
 
   it('caps offline income at the configured duration', () => {
@@ -156,7 +145,41 @@ describe('clickerMath', () => {
 
   it('builds a genre-agnostic meta upgrade catalog', () => {
     const kinds = new Set(META_UPGRADES.map((item) => item.kind));
-    expect(kinds).toEqual(new Set(['generator', 'global', 'click_cps', 'synergy']));
-    expect(META_UPGRADES.length).toBeGreaterThan(40);
+    expect(kinds).toEqual(new Set(['generator', 'global', 'click_per_second', 'base_multiplier']));
+    expect(META_UPGRADES.filter((item) => item.kind === 'base_multiplier').length).toBe(20);
+    expect(CLICKER_GENERATORS).toHaveLength(10);
+    expect(META_UPGRADES.length).toBe(80);
+  });
+
+  it('applies base multiplier upgrades as multiplicative production boosts', () => {
+    const controller = createController();
+    controller.hydrate({
+      coins: '2000000',
+      totalCoinsEarned: '50000',
+      upgrades: [{ id: 'upgrade-1', level: 1 }],
+    });
+
+    expect(controller.state.perSecond.toString()).toBe('1');
+    expect(controller.tryBuyMetaUpgrade('base-multiplier-1')).toMatchObject({ ok: true });
+    expect(controller.state.perSecond.toString()).toBe('1.01');
+  });
+
+  it('prestiges for Ascension Tokens and keeps permanent bonus', () => {
+    const controller = createController();
+    controller.hydrate({
+      coins: '0',
+      coinsThisAscension: '100000000',
+      totalCoinsEarned: '100000000',
+      upgrades: [{ id: 'upgrade-1', level: 10 }],
+    });
+
+    const preview = controller.getPrestigePreview();
+    expect(preview.ascensionTokensGain).toBeGreaterThan(0);
+    expect(controller.tryPrestige()).toMatchObject({ ok: true });
+    expect(controller.state.ascensionTokens).toBe(preview.ascensionTokensGain);
+    expect(controller.state.upgrades.find((item) => item.id === 'upgrade-1')?.level).toBe(0);
+    expect(controller.state.coins.toString()).toBe('0');
+    expect(controller.state.perSecond.toNumber()).toBe(0);
+    expect(controller.getMultiplierBreakdown().ascensionTokensMultiplier).toBeGreaterThan(1);
   });
 });

@@ -14,12 +14,15 @@ import { buildBoostsView } from '../ui/boostsView.js';
 import { buildBottomNavigation } from '../ui/bottomNavigation.js';
 import { buildSettingsButton, buildSettingsView } from '../ui/settingsView.js';
 import { buildUpgradeListView } from '../ui/upgradeListView.js';
+import { buildStatusView } from '../ui/statusView.js';
+import { buildPrestigeView } from '../ui/prestigeView.js';
 import { createAutoTapCursorLayer } from '../ui/autoTapCursors.js';
 import { getMetaUpgradeEffectText } from '../ui/metaUpgradeCopy.js';
 import handCursorUrl from '../assets/hand-cursor.png';
 import {
   destroyStartOverlay,
   showOfflineReturn as showOfflineReturnOverlay,
+  showPrestigeConfirm,
   showStartOverlay as showStartOverlayUI,
 } from './clicker/overlays.js';
 import { createHoldBuyController } from './clicker/holdBuy.js';
@@ -29,10 +32,13 @@ import {
   flushProgressAndSave as flushProgressAndSaveHelper,
 } from './clicker/wallClock.js';
 import { renderStoreRows, updateMetaListLayout, updateStoreListLayout } from './clicker/listRender.js';
+import { setupListViewportCameras } from './clicker/viewportCameras.js';
 import {
   beginPageSwipe as beginPageSwipeHelper,
   setActivePage as setActivePageHelper,
   setupPageSwipe,
+  PAGE,
+  SETTINGS_PAGE,
 } from './clicker/pageNavigation.js';
 
 export class ClickerScene extends Phaser.Scene {
@@ -50,7 +56,7 @@ export class ClickerScene extends Phaser.Scene {
     const hasSave = !!loadedState;
     const offline = this.engine.hydrate(loadedState, {
       nowMs: Date.now(),
-      maxOfflineSeconds: LOOP_CONFIG.maxOfflineSeconds,
+      maxOfflineSeconds: LOOP_CONFIG.maxOfflineSeconds ?? Number.POSITIVE_INFINITY,
     });
     this.state = this.engine.state;
     this.settings = loadSettings();
@@ -60,7 +66,7 @@ export class ClickerScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
-    this.activePage = 1;
+    this.activePage = PAGE.TAP;
     this.navHeight = UI_LAYOUT.navHeight;
     this.navTop = height - this.navHeight;
     this.tapCenterY = UI_LAYOUT.tapCenterY;
@@ -124,7 +130,7 @@ export class ClickerScene extends Phaser.Scene {
       const moved = this.corePointerDown && Phaser.Math.Distance.Between(this.corePointerDown.x, this.corePointerDown.y, pointer.x, pointer.y) > 14;
       this.corePointerDown = null;
 
-      if (!this.gameStarted || moved || this.activePage !== 1) {
+      if (!this.gameStarted || moved || this.activePage !== PAGE.TAP) {
         return;
       }
 
@@ -222,8 +228,8 @@ export class ClickerScene extends Phaser.Scene {
       listHeight: 0,
     };
 
-    this.boostsTitle = this.add
-      .text(28, UI_LAYOUT.sectionTitleY, UI_TEXT.metaUpgradesTitle || UI_TEXT.boostsTitle, {
+    this.metaUpgradesTitle = this.add
+      .text(28, UI_LAYOUT.sectionTitleY, UI_TEXT.metaUpgradesTitle, {
         fontFamily: FONT_FAMILIES.display,
         fontSize: '24px',
         color: COLORS.accentText,
@@ -247,22 +253,70 @@ export class ClickerScene extends Phaser.Scene {
       boosts: this.state.boosts,
       layout: this.boostLayout,
       onPointerDown: (pointer) => this.beginPageSwipe(pointer),
-      onBuy: (boost) => this.buyBoost(boost),
+      onBuy: (boost) => this.buyMetaUpgrade(boost),
     });
+
+    this.statusPage = this.add.container(0, 0).setVisible(false);
+    const statusPanelTop = 294;
+    const statusPanelBottomMargin = this.navHeight + 14;
+    const statusPanelHeight = height - statusPanelTop - statusPanelBottomMargin;
+    const statusPanelCenterY = height - statusPanelBottomMargin - statusPanelHeight / 2;
+    const statusPanelTopY = statusPanelCenterY - statusPanelHeight / 2;
+    const statusPanelBottomY = statusPanelCenterY + statusPanelHeight / 2;
+    const statusListTop = statusPanelTopY + 12;
+    const statusListBottom = statusPanelBottomY - 12;
+
+    this.statusLayout = {
+      rowHeight: 28,
+      rowGap: 0,
+      panelCenterY: statusPanelCenterY,
+      panelTopY: statusPanelTopY,
+      panelBottomY: statusPanelBottomY,
+      listLeft: 24,
+      listWidth: width - 56,
+      listTop: statusListTop,
+      listBottom: statusListBottom,
+      visibleListHeight: statusListBottom - statusListTop,
+      listHeight: 0,
+    };
+
+    this.statusPanelBg = this.add
+      .rectangle(width / 2, statusPanelCenterY, width - 34, statusPanelHeight, COLORS.storePanel, 0.86)
+      .setStrokeStyle(2, COLORS.storePanelBorder)
+      .setVisible(false);
+    this.statusContent = this.add.container(0, 0);
+    this.statusView = buildStatusView({
+      scene: this,
+      content: this.statusContent,
+      listTop: statusListTop,
+    });
+    this.statusPage.add(this.statusView.title);
+
+    this.prestigePage = this.add.container(0, 0).setVisible(false);
+    this.prestigeView = buildPrestigeView({
+      scene: this,
+      container: this.prestigePage,
+      onRequestPrestige: () => this.requestPrestige(),
+    });
+
     this.settingItems = buildSettingsView({ scene: this, container: this.settingsPage, onToggle: (settingKey) => this.toggleSetting(settingKey) });
     const settingsButton = buildSettingsButton(this, () => this.toggleSettingsPage());
     this.settingsButtonBackground = settingsButton.background;
     this.settingsButtonIcon = settingsButton.icon;
     this.navTabs = buildBottomNavigation({ scene: this, navTop: this.navTop, navHeight: this.navHeight, onSelect: (index) => this.selectPage(index) });
-    this.setupUpgradeViewportCamera();
-    this.setupBoostViewportCamera();
+    setupListViewportCameras(this, [
+      { key: 'upgradeCamera', content: this.upgradeContent, layout: this.upgradeLayout },
+      { key: 'boostCamera', content: this.boostContent, layout: this.boostLayout },
+      { key: 'statusCamera', content: this.statusContent, layout: this.statusLayout },
+    ]);
+    this.statusCamera.setVisible(false);
 
     this.holdBuy = createHoldBuyController(this);
     this.upgradeScroll = new ListScrollController({
       scene: this,
       layout: this.upgradeLayout,
       items: this.upgradeItems,
-      isEnabled: () => this.gameStarted && this.activePage === 0,
+      isEnabled: () => this.gameStarted && this.activePage === PAGE.STORE,
       onPointerMove: (pointer) => this.holdBuy.cancelUpgradeHoldOnMove(pointer),
       onPointerUp: (pointer) => this.holdBuy.stopUpgradeHold(pointer.id),
     });
@@ -271,7 +325,7 @@ export class ClickerScene extends Phaser.Scene {
       scene: this,
       layout: this.boostLayout,
       items: this.boostItems,
-      isEnabled: () => this.gameStarted && this.activePage === 2,
+      isEnabled: () => this.gameStarted && this.activePage === PAGE.UPGRADE,
       syncItem: (item, y) => {
         item.background.y = y;
         item.name.y = y - 22;
@@ -282,8 +336,22 @@ export class ClickerScene extends Phaser.Scene {
       },
     });
     this.boostScroll.setup();
+    this.statusScroll = new ListScrollController({
+      scene: this,
+      layout: this.statusLayout,
+      items: this.statusView.items,
+      isEnabled: () => this.gameStarted && this.activePage === PAGE.STATUS,
+      syncItem: (item, y) => {
+        const yy = y + (item.offsetY ?? 0);
+        (item.nodes ?? [item.node]).forEach((node) => {
+          node.y = yy;
+        });
+      },
+    });
+    this.statusScroll.setup();
+    this.statusScroll.setVisible(false);
     setupPageSwipe(this);
-    this.setActivePage(1);
+    this.setActivePage(PAGE.TAP);
     this.lastProgressAtMs = Date.now();
 
     this.time.addEvent({
@@ -333,19 +401,18 @@ export class ClickerScene extends Phaser.Scene {
 
   finishUpgradePurchase(upgrade, pointer, moved) {
     const boughtWhileHeld = this.holdBuy.stopUpgradeHold(pointer.id);
-    if (!this.gameStarted || moved || boughtWhileHeld || this.activePage !== 0) {
+    if (!this.gameStarted || moved || boughtWhileHeld || this.activePage !== PAGE.STORE) {
       return;
     }
     this.tryBuyUpgrade(upgrade.id);
   }
 
-  buyBoost(boost) {
-    if (!this.gameStarted || this.activePage !== 2) {
+  buyMetaUpgrade(boost) {
+    if (!this.gameStarted || this.activePage !== PAGE.UPGRADE) {
       return;
     }
 
-    const buy = this.engine.tryBuyMetaUpgrade ?? this.engine.tryBuyBoost;
-    const result = buy.call(this.engine, boost.id);
+    const result = this.engine.tryBuyMetaUpgrade(boost.id);
     if (!result.ok) {
       this.cameras.main.shake(120, 0.004);
       return;
@@ -353,6 +420,37 @@ export class ClickerScene extends Phaser.Scene {
 
     this.feedback.playPurchase();
     this.feedback.spawnFloatingText(getMetaUpgradeEffectText(boost), COLORS.positiveText, 520);
+    this.renderState();
+    this.persist();
+  }
+
+  requestPrestige() {
+    if (!this.gameStarted || this.activePage !== PAGE.PRESTIGE || this.confirmDialog) {
+      return;
+    }
+    const preview = this.engine.getPrestigePreview();
+    if (preview.ascensionTokensGain <= 0) {
+      this.cameras.main.shake(120, 0.004);
+      return;
+    }
+    showPrestigeConfirm(this, () => this.doPrestige());
+  }
+
+  doPrestige() {
+    if (!this.gameStarted || this.activePage !== PAGE.PRESTIGE) {
+      return;
+    }
+    const result = this.engine.tryPrestige();
+    if (!result.ok) {
+      this.cameras.main.shake(120, 0.004);
+      return;
+    }
+    this.feedback.playPurchase();
+    this.feedback.spawnFloatingText(
+      `+${result.tokensGained} ${UI_TEXT.ascensionTokens}`,
+      COLORS.accentText,
+      520,
+    );
     this.renderState();
     this.persist();
   }
@@ -377,7 +475,7 @@ export class ClickerScene extends Phaser.Scene {
   }
 
   toggleSetting(settingKey) {
-    if (!this.gameStarted || this.activePage !== 3) {
+    if (!this.gameStarted || this.activePage !== SETTINGS_PAGE) {
       return;
     }
 
@@ -391,47 +489,31 @@ export class ClickerScene extends Phaser.Scene {
       return;
     }
 
-    if (this.activePage === 3) {
-      this.setActivePage(this.previousMainPage ?? 1);
+    if (this.activePage === SETTINGS_PAGE) {
+      this.setActivePage(this.previousMainPage ?? PAGE.TAP);
       return;
     }
 
     this.previousMainPage = this.activePage;
-    this.setActivePage(3);
+    this.setActivePage(SETTINGS_PAGE);
   }
 
   selectPage(index) {
+    if (this.activePage === SETTINGS_PAGE && index !== SETTINGS_PAGE) {
+      this.previousMainPage = index;
+    }
     if (this.gameStarted) {
       this.setActivePage(index);
     }
   }
 
-  setupUpgradeViewportCamera() {
-    const { listLeft, listTop, listWidth, visibleListHeight } = this.upgradeLayout;
-
-    this.cameras.main.ignore(this.upgradeContent);
-
-    this.upgradeCamera = this.cameras.add(listLeft, listTop, listWidth, visibleListHeight);
-    this.upgradeCamera.setBackgroundColor('rgba(0,0,0,0)');
-    this.upgradeCamera.setScroll(listLeft, listTop);
-
-    const mainObjects = this.children.list.filter((obj) => obj !== this.upgradeContent);
-    this.upgradeCamera.ignore(mainObjects);
-  }
-
-  setupBoostViewportCamera() {
-    const { listLeft, listTop, listWidth, visibleListHeight } = this.boostLayout;
-
-    this.cameras.main.ignore(this.boostContent);
-
-    this.boostCamera = this.cameras.add(listLeft, listTop, listWidth, visibleListHeight);
-    this.boostCamera.setBackgroundColor('rgba(0,0,0,0)');
-    this.boostCamera.setScroll(listLeft, listTop);
-
-    const mainObjects = this.children.list.filter((obj) => obj !== this.boostContent);
-    this.boostCamera.ignore(mainObjects);
-    this.upgradeCamera.ignore(this.boostContent);
-    this.boostCamera.ignore(this.upgradeContent);
+  refreshStatusList() {
+    if (!this.statusView || !this.statusScroll) {
+      return;
+    }
+    const listHeight = this.statusView.refresh(this.state, this.engine.getMultiplierBreakdown());
+    this.statusScroll.items = this.statusView.items;
+    this.statusScroll.updateMetrics(listHeight);
   }
 
   setActivePage(index) {
@@ -466,13 +548,21 @@ export class ClickerScene extends Phaser.Scene {
 
   renderState() {
     this.coinsText.setText(`${formatCoins(this.state.coins, { rate: this.state.perSecond })} coins`);
-    this.statsText.setText(`per tap: ${formatCoins(this.state.perClick)} | per second: ${formatCoins(this.state.perSecond)}`);
+    this.statsText.setText(
+      `per tap: ${formatCoins(this.state.perClick)} | coins / sec: ${formatCoins(this.state.perSecond)}`,
+    );
     this.fitHudText(this.coinsText);
     this.fitHudText(this.statsText);
     this.renderSettings();
     updateStoreListLayout(this);
     renderStoreRows(this);
     updateMetaListLayout(this);
+    if (this.activePage === PAGE.STATUS) {
+      this.refreshStatusList();
+    }
+    if (this.activePage === PAGE.PRESTIGE) {
+      this.prestigeView?.refresh(this.state, this.engine.getPrestigePreview());
+    }
   }
 
   updateBoostListLayout() {
@@ -486,7 +576,7 @@ export class ClickerScene extends Phaser.Scene {
   update() {
     this.applyWallClockProgress();
 
-    const onTapPage = this.gameStarted && this.activePage === 1;
+    const onTapPage = this.gameStarted && this.activePage === PAGE.TAP;
     const cursorCount = onTapPage ? getAutoTapCursorCount(this.state) : 0;
     this.autoTapCursors.layer.setVisible(onTapPage);
     this.autoTapCursors.updateOrbit(cursorCount, this.time.now);

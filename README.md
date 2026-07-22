@@ -19,15 +19,18 @@ Resolução base: `540×960`. App id Capacitor: `com.clickergame.app`.
 - Economia com números grandes e custos exponenciais.
 - Clique manual + geradores idle encadeados.
 - **Auto Tap:** cursores em órbita (até 2 anéis / 63 slots); depois disso cada level pinta uma cor (1×, 2×, 3×…).
-- Aba UPGRADE com meta-upgrades estilo Cookie Clicker (genéricos, sem lore):
-  - efficiency por gerador (×2 ao atingir owned N)
+- Aba UPGRADE com meta-upgrades genéricos (sem lore):
+  - efficiency por gerador (×2 ao atingir owned N) — pips amarelos `★` na STORE
   - produção global
-  - tap ganha % do CPS
-  - synergies entre geradores vizinhos
+  - tap ganha % da produção idle
+  - BASE MULTIPLIER 1…20
 - Catálogo progressivo: só o próximo item bloqueado aparece como `???`.
 - Compra unitária ou acelerada por toque prolongado.
 - Idle em tempo real por relógio de parede (continua ao voltar da aba).
-- Ganhos offline com limite configurável e modal de retorno.
+- Ganhos offline (cap configurável; padrão sem teto) e modal de retorno.
+- Achievements com bônus permanente de idle %.
+- Prestige com **Ascension Tokens** (quadrado roxo + nome) e diálogo de confirmação.
+- Aba STATUS (stats, multiplicadores, achievements).
 - Contador de coins atualizado a cada frame (sem floating verde de income).
 - Formatação de números no estilo Cookie Clicker.
 - Save versionado com migrações (`SAVE_VERSION`) — progresso antigo sobrevive a updates.
@@ -74,8 +77,8 @@ npm run test:coverage
 src/
   config/       Resolução, loops, tema e textos
   controllers/  Interações com estado próprio (scroll)
-  data/         Geradores, upgrades, boosts e factories
-  lib/          Motor econômico puro + formatação
+  data/         Geradores, upgrades, meta-upgrades, achievements
+  lib/          Motor econômico puro, prestige, formatação
   scenes/       Orquestração da cena Phaser e ciclo de vida
   services/     Save, preferências e feedback do dispositivo
   ui/           Builders de interface sem regras econômicas
@@ -84,6 +87,7 @@ src/
 Responsabilidades principais:
 
 - [`src/lib/clickerMath.js`](src/lib/clickerMath.js): economia, compras, produção, offline e formatação.
+- [`src/lib/prestige.js`](src/lib/prestige.js): ganho e multiplicador de Ascension Tokens.
 - [`src/lib/autoTapProgress.js`](src/lib/autoTapProgress.js): slots, cores e multiplicadores do Auto Tap.
 - [`src/scenes/ClickerScene.js`](src/scenes/ClickerScene.js): motor + UI + idle por wall-clock + persistência.
 - [`src/config/theme.js`](src/config/theme.js): cores, fontes e medidas.
@@ -91,13 +95,14 @@ Responsabilidades principais:
 - [`src/config/gameConfig.js`](src/config/gameConfig.js): resolução, `SAVE_KEY`, `SAVE_VERSION` e loops.
 - [`src/data/generators.js`](src/data/generators.js): catálogo de geradores.
 - [`src/data/upgrades.js`](src/data/upgrades.js): upgrades de clique + Auto Tap.
-- [`src/data/metaUpgrades.js`](src/data/metaUpgrades.js): catálogo `META_UPGRADES` (generator / global / click_cps / synergy).
-- [`src/data/boosts.js`](src/data/boosts.js): re-export legado de `metaUpgrades.js`.
+- [`src/data/metaUpgrades.js`](src/data/metaUpgrades.js): catálogo `META_UPGRADES`.
+- [`src/data/achievements.js`](src/data/achievements.js): milestones → bônus idle permanente.
+- [`src/data/baseMultipliers.js`](src/data/baseMultipliers.js): tiers `BASE MULTIPLIER 1…20`.
 - [`src/services/saveStorage.js`](src/services/saveStorage.js): load/save com checksum e regravação canônica.
 - [`src/services/saveMigrations.js`](src/services/saveMigrations.js): passos de migração entre versões de save.
 - [`src/services/storageAdapter.js`](src/services/storageAdapter.js): localStorage + mirror Capacitor Preferences.
 - [`src/controllers/ListScrollController.js`](src/controllers/ListScrollController.js): scroll por dedo (barra só visual).
-- [`src/scenes/clicker/`](src/scenes/clicker/): helpers da cena (hold-buy, wall-clock, listas, overlays, nav).
+- [`src/scenes/clicker/`](src/scenes/clicker/): helpers da cena (hold-buy, wall-clock, listas, overlays, nav, cameras).
 
 Detalhes de extensão também em [`BOILERPLATE.md`](BOILERPLATE.md).
 
@@ -114,17 +119,27 @@ Detalhes de extensão também em [`BOILERPLATE.md`](BOILERPLATE.md).
 - Meta-upgrades (aba UPGRADE, compra única, somem da lista ao comprar):
   - `generator`: own N daquele gerador → produção dele ×2
   - `global`: own N geradores no total → produção global ×M
-  - `click_cps`: N taps → tap +% do CPS
-  - `synergy`: own N em dois geradores vizinhos → bônus cruzado genérico
-- Sem sistemas temáticos (leite/kittens, grandma types, research, prestige).
+  - `click_per_second`: N taps → tap +% da produção idle
+  - `base_multiplier`: lifetime coins → produção global ×(1+%)
+- Prestige: soft reset → **Ascension Tokens** (+1% idle cada). Confirmação obrigatória.
+- Achievements: milestones → multiplicador idle permanente (mantidos no prestige).
+- Sem sistemas temáticos pesados (leite/kittens, grandma types, research).
 
 Catálogo padrão:
 
 - Upgrades de clique: `tap-power` + `auto-tap` (1 clique / 10s por level; visual de cursores na aba TAP).
-- 9 geradores encadeados (`upgrade-1` … `upgrade-9`) via `createGeneratorChain`.
-- Meta-upgrades gerados em `META_UPGRADES` (tiers por gerador + globais + CPS tap + synergies).
+- 10 geradores encadeados (`upgrade-1` … `upgrade-10`) via `createGeneratorChain`.
+- Meta-upgrades gerados em `META_UPGRADES` (tiers por gerador + globais + tap-% + BASE MULTIPLIER).
 
 Desbloqueio: cada gerador exige o anterior (`unlockAfter`). A UI mostra todos os liberados + apenas o próximo como `???`.
+
+### Prestige (Ascension Tokens)
+
+- Moeda permanente: `ascensionTokens` (ícone = quadrado roxo ao lado do nome).
+- Ganho ≈ `floor(sqrt(coinsThisAscension / 1e6))` (mínimo ~1M coins nesta run).
+- Soft reset limpa coins, níveis da STORE e meta-upgrades comprados.
+- Mantém tokens, achievements e stats all-time.
+- ★ amarelas na STORE são **efficiency pips**, não Ascension Tokens.
 
 ### Auto Tap
 
@@ -140,7 +155,7 @@ Desbloqueio: cada gerador exige o anterior (`unlockAfter`). A UI mostra todos os
 - Ao ocultar a aba / `pagehide` / `beforeunload`: aplica progresso pendente e salva.
 - Ao voltar para a aba: recupera o tempo parado; se ≥ 60s, mostra modal de offline.
 - No load: `hydrate` aplica progresso desde `savedAt` em um único passo matemático (sem simular frame a frame).
-- Teto offline: `LOOP_CONFIG.maxOfflineSeconds` (padrão **8 horas**).
+- Teto offline: `LOOP_CONFIG.maxOfflineSeconds` (`null` = sem teto).
 
 ### Formatação de números (estilo Cookie Clicker)
 
@@ -190,7 +205,7 @@ LOOP_CONFIG = {
   maxOfflineSeconds: 8 * 60 * 60 // teto de 8h de progresso offline
 }
 SAVE_KEY = 'clicker-phaser-save-v1' // NUNCA renomear — use SAVE_VERSION + migrações
-SAVE_VERSION = 5
+SAVE_VERSION = 6
 ```
 
 Optional Vite env (`.env.example`): `VITE_APP_ID`, `VITE_SAVE_KEY`.
@@ -199,11 +214,11 @@ Optional Vite env (`.env.example`): `VITE_APP_ID`, `VITE_SAVE_KEY`.
 
 ## Save e migrações
 
-**Status atual: ok para publicar.** Saves antigos sobem automaticamente até `SAVE_VERSION = 5`.
+**Status atual: ok para publicar.** Saves antigos sobem automaticamente até `SAVE_VERSION = 8`.
 
 ### O que é persistido
 
-Snapshot: `coins`, `totalClicks`, `autoTapProgress`, níveis de upgrades (inclui Auto Tap), boosts comprados, `savedAt`.
+Snapshot: `coins`, `totalCoinsEarned`, `coinsThisAscension`, `totalClicks`, `autoTapProgress`, `ascensionTokens`, `prestigeCount`, `unlockedAchievements`, níveis de upgrades (inclui Auto Tap), meta-upgrades comprados (`boosts`), `savedAt`.
 
 Hydrate faz merge **por `id`**: itens novos no catálogo entram em 0 / não comprados; itens removidos do catálogo são ignorados sem apagar o resto.
 
@@ -224,9 +239,12 @@ Reset total: `?resetSave=1`. Settings (som/vibração) ficam em chave separada.
 | --- | --- |
 | **1** | Save legado (JSON puro ou envelope antigo). |
 | **2** | Normaliza shape (`coins`, arrays, `autoTapProgress`, etc.). |
-| **3** | Compensa **estrelas/milestones** removidos → efficiency já comprados. Boosts `first-surge` / `power-grid` / `overdrive` → globals. |
+| **3** | Compensa **milestones** removidos → efficiency já comprados. Boosts `first-surge` / `power-grid` / `overdrive` → globals. |
 | **4** | (breve) tentativa `upgrade-N` → `generator-N`. |
 | **5** | Reverte `generator-N` → `upgrade-N` (ids estáveis) + merge com aliases. |
+| **6** | `totalCoinsEarned` + aliases `cps-tap-*` → `click-per-second-tap-*`. |
+| **7** | Prestige/achievements: `coinsThisAscension`, `stars`, `prestigeCount`, `unlockedAchievements`. |
+| **8** | `stars` → `ascensionTokens`. |
 
 Auto Tap (cores, anéis, multiplicadores) **não exige migração**: tudo deriva do `level` de `auto-tap` já salvo.
 
@@ -241,7 +259,7 @@ Auto Tap (cores, anéis, multiplicadores) **não exige migração**: tudo deriva
 ### Limitações conscientes
 
 - Boosts globais antigos (`first-surge` etc. eram ×2) mapeiam para globals atuais (multiplicadores menores). O progresso não some; o poder daqueles itens específicos fica mais próximo do balance novo.
-- A 5ª estrela antiga (owned 200) só tem 4 efficiency tiers no catálogo atual — o 5º ×2 não tem equivalente 1:1.
+- Os **20 primeiros** multipliers genéricos viraram `BASE MULTIPLIER 1…20` (sem lore sazonal).
 
 ---
 
@@ -252,17 +270,18 @@ Auto Tap (cores, anéis, multiplicadores) **não exige migração**: tudo deriva
 3. Resolução e loops: `src/config/gameConfig.js`
 4. Geradores: `src/data/generators.js`
 5. Upgrades de clique / Auto Tap: `src/data/upgrades.js` + `src/lib/autoTapProgress.js`
-6. Meta-upgrades: `src/data/boosts.js`
-7. Fórmulas e formatação: `src/lib/clickerMath.js`
-8. Migrações de save: `src/services/saveMigrations.js`
+6. Meta-upgrades: `src/data/metaUpgrades.js`
+7. Prestige / Ascension Tokens: `src/lib/prestige.js`
+8. Achievements: `src/data/achievements.js`
+9. Fórmulas e formatação: `src/lib/clickerMath.js`
+10. Migrações de save: `src/services/saveMigrations.js`
 
 Depois: `npm test` e `npm run build`.
 
 ### Pontos de extensão sugeridos
 
-- Prestige: `src/lib/prestigeMath.js`
 - Modificadores extras: `src/data/modifiers.js`
-- Missões/achievements: `src/lib/objectivesEngine.js`
+- Missões/sazonais: `src/lib/objectivesEngine.js`
 
 ---
 

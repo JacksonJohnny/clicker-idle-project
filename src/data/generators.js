@@ -11,4 +11,5 @@ export const CLICKER_GENERATORS = createGeneratorChain([
   { id: 'upgrade-7', label: 'Generator 7', baseCost: 330000000, baseValue: 44000 },
   { id: 'upgrade-8', label: 'Generator 8', baseCost: 5100000000, baseValue: 260000 },
   { id: 'upgrade-9', label: 'Generator 9', baseCost: 75000000000, baseValue: 1600000 },
+  { id: 'upgrade-10', label: 'Generator 10', baseCost: '1000000000000', baseValue: 10000000 },
 ]);
