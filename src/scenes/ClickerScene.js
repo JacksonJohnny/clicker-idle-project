@@ -5,7 +5,9 @@ import { UI_TEXT } from '../config/uiText.js';
 import { META_UPGRADES } from '../data/metaUpgrades.js';
 import { CLICKER_GENERATORS } from '../data/generators.js';
 import { CLICK_UPGRADES } from '../data/upgrades.js';
-import { createClickerController, formatCoins, getAutoTapCursorCount } from '../lib/clickerMath.js';
+import { formatCoins, getAutoTapCursorCount } from '../lib/clickerMath.js';
+import { createClickerController } from '../lib/clickerController.js';
+
 import { createFeedbackService } from '../services/feedbackService.js';
 import { loadGameState, saveGameState } from '../services/saveStorage.js';
 import { loadSettings, saveSettings } from '../services/settingsStorage.js';

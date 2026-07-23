@@ -3,7 +3,7 @@ import { SAVE_KEY, SAVE_VERSION } from '../config/gameConfig.js';
 import { META_UPGRADES } from '../data/metaUpgrades.js';
 import { CLICKER_GENERATORS } from '../data/generators.js';
 import { CLICK_UPGRADES } from '../data/upgrades.js';
-import { createClickerController } from '../lib/clickerMath.js';
+import { createClickerController } from '../lib/clickerController.js';
 import { computeChecksum, loadGameState, saveGameState, unpackEnvelope } from './saveStorage.js';
 
 describe('saveStorage', () => {

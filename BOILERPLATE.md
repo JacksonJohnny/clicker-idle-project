@@ -7,7 +7,7 @@ Reusable Phaser + Capacitor idle clicker foundation.
 - `src/config` — resolution, theme, UI text, buy amounts, `SAVE_KEY` / `SAVE_VERSION`
 - `src/controllers` — `ListScrollController` (visual scrollbar + finger scroll)
 - `src/data` — generators, click upgrades, `metaUpgrades.js`, `achievements.js`
-- `src/lib` — pure economy (`clickerMath`) + Auto Tap progress + `prestige.js` + `saveState.js` (normalize / id aliases)
+- `src/lib` — formulas (`clickerMath`) + session controller (`clickerController`) + Auto Tap + `prestige.js` + `saveState.js`
 - `src/services` — save I/O + versioned migrations, settings, feedback, storage adapter
 - `src/ui` — Phaser builders (no buy rules) + `metaUpgradeCopy` + `achievementLines` + token badge
 - `src/scenes` — `ClickerScene` + `scenes/clicker/*` helpers (page builders, lists, overlays)

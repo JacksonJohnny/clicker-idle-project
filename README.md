@@ -76,7 +76,7 @@ src/
   config/          Resolução, loops, tema, textos, buy amounts, SAVE_*
   controllers/     ListScrollController
   data/            Geradores, upgrades, metaUpgrades, achievements
-  lib/             Economia pura, prestige, Auto Tap, normalize save, formatação
+  lib/             Fórmulas (clickerMath), sessão (clickerController), prestige, Auto Tap, save shape
   scenes/          ClickerScene (orquestra)
     clicker/       Page builders, listas, overlays, nav, cameras, wall-clock
   services/        Save, migrações, settings, feedback, storage
@@ -87,7 +87,8 @@ Arquivos-chave:
 
 | Área | Arquivo |
 | --- | --- |
-| Economia | [`src/lib/clickerMath.js`](src/lib/clickerMath.js) |
+| Economia (fórmulas) | [`src/lib/clickerMath.js`](src/lib/clickerMath.js) |
+| Sessão / buy / save hydrate | [`src/lib/clickerController.js`](src/lib/clickerController.js) |
 | Prestige | [`src/lib/prestige.js`](src/lib/prestige.js) |
 | Auto Tap | [`src/lib/autoTapProgress.js`](src/lib/autoTapProgress.js) |
 | Save shape | [`src/lib/saveState.js`](src/lib/saveState.js) |
@@ -248,7 +249,7 @@ Autosave 10s + flush em blur / `pagehide` / `beforeunload`. Reset: `?resetSave=1
 8. BASE MULTIPLIER tiers — `src/data/baseMultiplierTiers.json`
 9. Prestige — `src/lib/prestige.js`
 10. Achievements — `src/data/achievements.js`
-11. Fórmulas — `src/lib/clickerMath.js`
+11. Fórmulas — `src/lib/clickerMath.js`; sessão — `src/lib/clickerController.js`
 12. Migrações — `src/services/saveMigrations.js`
 
 Depois: `npm test` && `npm run build`.
