@@ -166,7 +166,9 @@ Swipe horizontal entre páginas; scroll vertical nas listas. Nav inferior com no
 
 ### Feedback
 
-- Compra: Web Audio (se habilitado).
+- Compra (STORE / UPGRADE): som Web Audio (se habilitado); **sem** texto flutuante de efeito.
+- Tap / Auto Tap: texto flutuante branco `+N` no botão.
+- Prestige bem-sucedido: texto flutuante com Ascension Tokens ganhos.
 - Settings (som, buy amount) em chave separada do save de progresso.
 
 ---
@@ -227,7 +229,7 @@ Autosave 10s + flush em blur / `pagehide` / `beforeunload`. Reset: `?resetSave=1
 1. Não renomeie `SAVE_KEY` (ou liste a antiga em `LEGACY_SAVE_KEYS`).
 2. Incremente `SAVE_VERSION`.
 3. Adicione passo em `saveMigrations.js`.
-4. Ids renomeados → `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES`.
+4. Ids renomeados → `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES` em [`src/lib/saveState.js`](src/lib/saveState.js).
 5. Só catálogo novo em geral **não** precisa de migração (merge por id).
 
 ### Limitações conscientes

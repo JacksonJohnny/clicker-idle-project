@@ -13,7 +13,6 @@ import { loadGameState, saveGameState } from '../services/saveStorage.js';
 import { loadSettings, saveSettings } from '../services/settingsStorage.js';
 import { getNavHeight } from '../ui/bottomNavigation.js';
 import { createAutoTapCursorLayer } from '../ui/autoTapCursors.js';
-import { getMetaUpgradeEffectText } from '../ui/metaUpgradeCopy.js';
 import handCursorUrl from '../assets/hand-cursor.png';
 import {
   destroyStartOverlay,
@@ -234,7 +233,6 @@ export class ClickerScene extends Phaser.Scene {
     }
 
     this.feedback.playPurchase();
-    this.feedback.spawnFloatingText(getMetaUpgradeEffectText(meta), COLORS.positiveText, 520);
     this.renderState();
     this.persist();
   }
