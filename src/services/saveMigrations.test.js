@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  compensateLegacyMilestoneStars,
-  migrateSaveState,
-  normalizeSaveState,
-} from './saveMigrations.js';
+import { compensateLegacyMilestoneStars, migrateSaveState, normalizeSaveState } from './saveMigrations.js';
 
 describe('saveMigrations', () => {
   it('normalizes missing fields without wiping coins', () => {

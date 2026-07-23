@@ -12,7 +12,7 @@ export function computeChecksum(value) {
   return (hash >>> 0).toString(16);
 }
 
-export function packSavePayload(state) {
+function packSavePayload(state) {
   const payload = JSON.stringify(state);
 
   return JSON.stringify({
@@ -55,7 +55,7 @@ export function unpackEnvelope(parsed, storageKey = SAVE_KEY) {
         version,
         verified: checksumOk,
       };
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -85,7 +85,7 @@ function readRawFromKeys() {
       if (unpacked) {
         return { ...unpacked, sourceKey: key };
       }
-    } catch (error) {
+    } catch (_error) {
       // Try next key.
     }
   }
@@ -131,10 +131,7 @@ export function loadGameState() {
     const migrated = migrateSaveState(loaded.state, loaded.version);
     const hadLegacyStars = loaded.state?.stars !== undefined;
     const needsRewrite =
-      loaded.sourceKey !== SAVE_KEY ||
-      loaded.version !== SAVE_VERSION ||
-      !loaded.verified ||
-      hadLegacyStars;
+      loaded.sourceKey !== SAVE_KEY || loaded.version !== SAVE_VERSION || !loaded.verified || hadLegacyStars;
 
     if (needsRewrite) {
       saveGameState(migrated.state);
@@ -144,7 +141,7 @@ export function loadGameState() {
     }
 
     return migrated.state;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

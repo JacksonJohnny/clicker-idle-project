@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { META_UPGRADES } from '../data/metaUpgrades.js';
 import { CLICKER_GENERATORS } from '../data/generators.js';
 import { CLICK_UPGRADES } from '../data/upgrades.js';
-import { createClickerController, formatCoins, formatIdleSharePercent, getGeneratorEfficiencyStarCount, getGeneratorIdleShare, isUpgradeUnlocked } from './clickerMath.js';
+import {
+  createClickerController,
+  formatCoins,
+  formatIdleSharePercent,
+  getGeneratorEfficiencyStarCount,
+  getGeneratorIdleShare,
+  isUpgradeUnlocked,
+} from './clickerMath.js';
 
 const createController = () => createClickerController([...CLICK_UPGRADES, ...CLICKER_GENERATORS], META_UPGRADES);
 
@@ -39,10 +46,20 @@ describe('clickerMath', () => {
     controller.hydrate({ coins: '100000' });
 
     expect(controller.tryBuyUpgrade('upgrade-2')).toMatchObject({ ok: false, reason: 'locked' });
-    expect(isUpgradeUnlocked(controller.state.upgrades.find((item) => item.id === 'upgrade-2'), controller.state.upgrades)).toBe(false);
+    expect(
+      isUpgradeUnlocked(
+        controller.state.upgrades.find((item) => item.id === 'upgrade-2'),
+        controller.state.upgrades,
+      ),
+    ).toBe(false);
 
     controller.tryBuyUpgrade('upgrade-1');
-    expect(isUpgradeUnlocked(controller.state.upgrades.find((item) => item.id === 'upgrade-2'), controller.state.upgrades)).toBe(true);
+    expect(
+      isUpgradeUnlocked(
+        controller.state.upgrades.find((item) => item.id === 'upgrade-2'),
+        controller.state.upgrades,
+      ),
+    ).toBe(true);
   });
 
   it('scales generator income linearly with level', () => {
@@ -243,5 +260,17 @@ describe('clickerMath', () => {
     expect(controller.state.coins.toString()).toBe('0');
     expect(controller.state.perSecond.toNumber()).toBe(0);
     expect(controller.getMultiplierBreakdown().ascensionTokensMultiplier).toBeGreaterThan(1);
+  });
+
+  it('unlocks achievements and applies their idle multiplier', () => {
+    const controller = createController();
+    controller.hydrate({
+      coins: '0',
+      totalClicks: 100,
+      upgrades: [{ id: 'upgrade-1', level: 10 }],
+    });
+
+    expect(controller.state.unlockedAchievements).toEqual(expect.arrayContaining(['taps-100', 'own-g1-10']));
+    expect(controller.getMultiplierBreakdown().achievementMultiplier).toBeGreaterThan(1);
   });
 });

@@ -115,7 +115,9 @@ export class ListScrollController {
 
   isPointerInside(pointer) {
     const { listLeft, listWidth, panelTopY, panelBottomY } = this.layout;
-    return pointer.x >= listLeft && pointer.x <= listLeft + listWidth && pointer.y >= panelTopY && pointer.y <= panelBottomY;
+    return (
+      pointer.x >= listLeft && pointer.x <= listLeft + listWidth && pointer.y >= panelTopY && pointer.y <= panelBottomY
+    );
   }
 
   setOffset(value) {
@@ -128,7 +130,10 @@ export class ListScrollController {
     this.layout.listHeight = listHeight;
     this.maxScroll = Math.max(0, listHeight - visibleListHeight);
     this.offset = clamp(this.offset, 0, this.maxScroll);
-    this.thumbHeight = this.maxScroll > 0 ? Math.max(40, visibleListHeight * (visibleListHeight / Math.max(listHeight, 1))) : visibleListHeight;
+    this.thumbHeight =
+      this.maxScroll > 0
+        ? Math.max(40, visibleListHeight * (visibleListHeight / Math.max(listHeight, 1)))
+        : visibleListHeight;
     this.thumb.setDisplaySize(12, this.thumbHeight);
     this.update();
   }

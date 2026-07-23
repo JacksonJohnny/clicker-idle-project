@@ -13,7 +13,7 @@ import { setupListViewportCameras } from './viewportCameras.js';
 import { PAGE } from './pageNavigation.js';
 
 /** Shared panel metrics for full-height list pages under the section title. */
-export function createFullHeightListLayout(scene, { panelTop = 294, rowHeight, rowGap = 0, panelPadding = 12 } = {}) {
+function createFullHeightListLayout(scene, { panelTop = 294, rowHeight, rowGap = 0, panelPadding = 12 } = {}) {
   const width = scene.scale.width;
   const height = scene.scale.height;
   const panelBottomMargin = scene.navHeight + 14;

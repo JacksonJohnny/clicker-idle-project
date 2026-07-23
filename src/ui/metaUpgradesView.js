@@ -10,7 +10,9 @@ export function buildMetaUpgradesView({ scene, container, metaUpgrades, layout, 
 
   return metaUpgrades.map((meta) => {
     const y = listTop + rowHeight / 2;
-    const background = scene.add.rectangle(width / 2, y, width - 58, rowHeight, COLORS.panel, 0.96).setStrokeStyle(2, COLORS.panelBorder);
+    const background = scene.add
+      .rectangle(width / 2, y, width - 58, rowHeight, COLORS.panel, 0.96)
+      .setStrokeStyle(2, COLORS.panelBorder);
     const name = scene.add
       .text(38, y - 22, meta.name, { fontFamily: FONT_FAMILIES.display, fontSize: '18px', color: COLORS.text })
       .setOrigin(0, 0.5);

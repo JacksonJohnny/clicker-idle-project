@@ -17,7 +17,7 @@ export function loadSettings() {
       soundEnabled: saved?.soundEnabled !== false,
       buyAmount: normalizeBuyAmount(saved?.buyAmount),
     };
-  } catch (error) {
+  } catch (_error) {
     return { ...DEFAULT_SETTINGS };
   }
 }

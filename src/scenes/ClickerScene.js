@@ -110,8 +110,12 @@ export class ClickerScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.coreGlow = this.add.circle(width / 2, this.tapCenterY, 136, COLORS.coreGlow, 0.18);
-    const coreRing = this.add.circle(width / 2, this.tapCenterY, 124, COLORS.coreRing, 0.12).setStrokeStyle(3, COLORS.coreRingBorder, 0.5);
-    this.coreButton = this.add.circle(width / 2, this.tapCenterY, 116, COLORS.coreButton).setInteractive({ useHandCursor: true });
+    const coreRing = this.add
+      .circle(width / 2, this.tapCenterY, 124, COLORS.coreRing, 0.12)
+      .setStrokeStyle(3, COLORS.coreRingBorder, 0.5);
+    this.coreButton = this.add
+      .circle(width / 2, this.tapCenterY, 116, COLORS.coreButton)
+      .setInteractive({ useHandCursor: true });
     const coreInner = this.add.circle(width / 2, this.tapCenterY, 84, COLORS.coreInner);
 
     this.buttonLabel = this.add
@@ -132,7 +136,9 @@ export class ClickerScene extends Phaser.Scene {
     });
 
     this.coreButton.on('pointerup', (pointer) => {
-      const moved = this.corePointerDown && Phaser.Math.Distance.Between(this.corePointerDown.x, this.corePointerDown.y, pointer.x, pointer.y) > 14;
+      const moved =
+        this.corePointerDown &&
+        Phaser.Math.Distance.Between(this.corePointerDown.x, this.corePointerDown.y, pointer.x, pointer.y) > 14;
       this.corePointerDown = null;
 
       if (!this.gameStarted || moved || this.activePage !== PAGE.TAP) {
@@ -253,11 +259,7 @@ export class ClickerScene extends Phaser.Scene {
       return;
     }
     this.feedback.playPurchase();
-    this.feedback.spawnFloatingText(
-      `+${result.tokensGained} ${UI_TEXT.ascensionTokens}`,
-      COLORS.accentText,
-      520,
-    );
+    this.feedback.spawnFloatingText(`+${result.tokensGained} ${UI_TEXT.ascensionTokens}`, COLORS.accentText, 520);
     this.renderState();
     this.persist();
   }

@@ -3,7 +3,9 @@ import { UI_TEXT } from '../config/uiText.js';
 
 function createToggle(scene, label, description, settingKey, y, onToggle) {
   const width = scene.scale.width;
-  const background = scene.add.rectangle(width / 2, y, width - 48, 78, COLORS.panel, 0.96).setStrokeStyle(2, COLORS.panelBorder);
+  const background = scene.add
+    .rectangle(width / 2, y, width - 48, 78, COLORS.panel, 0.96)
+    .setStrokeStyle(2, COLORS.panelBorder);
   const labelText = scene.add
     .text(44, y - 14, label, { fontFamily: FONT_FAMILIES.display, fontSize: '19px', color: COLORS.text })
     .setOrigin(0, 0.5);
@@ -28,11 +30,11 @@ export function buildSettingsView({ scene, container, onToggle }) {
       color: COLORS.accentText,
     })
     .setOrigin(0, 0.5);
-  const items = [
-    createToggle(scene, UI_TEXT.sound, UI_TEXT.soundDescription, 'soundEnabled', 340, onToggle),
-  ];
+  const items = [createToggle(scene, UI_TEXT.sound, UI_TEXT.soundDescription, 'soundEnabled', 340, onToggle)];
   const objects = [title];
-  items.forEach((item) => objects.push(item.background, item.label, item.description, item.toggle, item.valueText, item.hitArea));
+  items.forEach((item) =>
+    objects.push(item.background, item.label, item.description, item.toggle, item.valueText, item.hitArea),
+  );
   container.add(objects);
   return items;
 }

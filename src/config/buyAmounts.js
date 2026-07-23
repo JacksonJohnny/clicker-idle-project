@@ -1,9 +1,7 @@
 /** Store bulk-buy modes (Cookie Clicker–style). */
 export const BUY_AMOUNT_OPTIONS = Object.freeze([1, 10, 25, 'max']);
 
-const NUMERIC_BUY_AMOUNTS = new Set(
-  BUY_AMOUNT_OPTIONS.filter((option) => typeof option === 'number'),
-);
+const NUMERIC_BUY_AMOUNTS = new Set(BUY_AMOUNT_OPTIONS.filter((option) => typeof option === 'number'));
 
 export function normalizeBuyAmount(value) {
   if (value === 'max' || value === 'MAX') {

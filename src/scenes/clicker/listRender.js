@@ -25,7 +25,15 @@ export function updateStoreListLayout(scene) {
     const unlocked = isUpgradeUnlocked(upgrade, scene.state.upgrades);
     item.isLockedPreview = !unlocked && item.id === nextLockedUpgrade?.id;
     const visible = unlocked || item.isLockedPreview;
-    const objects = [item.rowBg, item.label, item.level, item.info, ...(item.stars ?? []), item.buyButton, item.buyText];
+    const objects = [
+      item.rowBg,
+      item.label,
+      item.level,
+      item.info,
+      ...(item.stars ?? []),
+      item.buyButton,
+      item.buyText,
+    ];
 
     objects.forEach((object) => object?.setVisible(visible));
     if (item.buyButton.input) {

@@ -76,7 +76,7 @@ src/
   config/          Resolução, loops, tema, textos, buy amounts, SAVE_*
   controllers/     ListScrollController
   data/            Geradores, upgrades, metaUpgrades, achievements
-  lib/             Economia pura, prestige, Auto Tap, formatação
+  lib/             Economia pura, prestige, Auto Tap, normalize save, formatação
   scenes/          ClickerScene (orquestra)
     clicker/       Page builders, listas, overlays, nav, cameras, wall-clock
   services/        Save, migrações, settings, feedback, storage
@@ -90,6 +90,7 @@ Arquivos-chave:
 | Economia | [`src/lib/clickerMath.js`](src/lib/clickerMath.js) |
 | Prestige | [`src/lib/prestige.js`](src/lib/prestige.js) |
 | Auto Tap | [`src/lib/autoTapProgress.js`](src/lib/autoTapProgress.js) |
+| Save shape | [`src/lib/saveState.js`](src/lib/saveState.js) |
 | Cena | [`src/scenes/ClickerScene.js`](src/scenes/ClickerScene.js) + [`src/scenes/clicker/`](src/scenes/clicker/) |
 | Page builders | [`src/scenes/clicker/createPages.js`](src/scenes/clicker/createPages.js) |
 | Tema / copy | [`theme.js`](src/config/theme.js), [`uiText.js`](src/config/uiText.js) |

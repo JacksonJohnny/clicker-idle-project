@@ -3,11 +3,7 @@ import { AUTO_TAP_INTERVAL_SECONDS } from '../data/upgrades.js';
 import { ACHIEVEMENTS, getAchievementIdleMultiplier } from '../data/achievements.js';
 import { normalizeBuyAmount } from '../config/buyAmounts.js';
 import { calculateAscensionTokenGain, getAscensionTokenIdleMultiplier } from './prestige.js';
-import {
-  BOOST_ID_ALIASES,
-  UPGRADE_ID_ALIASES,
-  normalizeSaveState,
-} from '../services/saveMigrations.js';
+import { BOOST_ID_ALIASES, UPGRADE_ID_ALIASES, normalizeSaveState } from './saveState.js';
 import { getAutoTapCursorTier, getMaxAutoTapCursorSlots } from './autoTapProgress.js';
 
 /**
@@ -67,7 +63,7 @@ function toDecimal(value) {
 
   try {
     return new Decimal(value);
-  } catch (error) {
+  } catch (_error) {
     return new Decimal(0);
   }
 }
@@ -92,7 +88,10 @@ function formatScaleCoefficient(value, decimals) {
     return value.round().toFixed(0);
   }
 
-  return value.toFixed(decimals).replace(/\.?0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  return value
+    .toFixed(decimals)
+    .replace(/\.?0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
 }
 
 // Cookie Clicker-style Beautify: commas below 1M, "X.XXX billion" from 1M up.
@@ -490,7 +489,9 @@ function mergeStateFromSave(state, loaded) {
   state.unlockedAchievements = Array.isArray(normalized.unlockedAchievements)
     ? normalized.unlockedAchievements.filter((id) => typeof id === 'string')
     : state.unlockedAchievements;
-  state.totalClicks = Number.isFinite(Number(normalized.totalClicks)) ? Number(normalized.totalClicks) : state.totalClicks;
+  state.totalClicks = Number.isFinite(Number(normalized.totalClicks))
+    ? Number(normalized.totalClicks)
+    : state.totalClicks;
   state.autoTapProgress = Number.isFinite(Number(normalized.autoTapProgress))
     ? Math.max(0, Number(normalized.autoTapProgress))
     : state.autoTapProgress;

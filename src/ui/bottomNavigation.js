@@ -2,9 +2,9 @@ import { COLORS, FONT_FAMILIES, UI_LAYOUT } from '../config/theme.js';
 import { UI_TEXT } from '../config/uiText.js';
 
 /** Minimum interactive target size (mobile a11y). */
-export const MIN_TAB_HIT = 44;
+const MIN_TAB_HIT = 44;
 /** When more tabs than this, show overflow "…" for the rest. */
-export const MAX_VISIBLE_TABS = 5;
+const MAX_VISIBLE_TABS = 5;
 
 /**
  * Bottom nav with ≥44px hit targets.
@@ -32,10 +32,10 @@ export function buildBottomNavigation({ scene, navTop, navHeight, onSelect, onOv
 
   for (let index = 0; index < visibleCount; index += 1) {
     const x = tabWidth * index + tabWidth / 2;
-    const indicator = scene.add.rectangle(x, navTop + 6, Math.max(24, tabWidth - 24), 4, COLORS.navIndicator).setOrigin(0.5, 0);
-    const hitArea = scene.add
-      .zone(x, navTop + height / 2, tabWidth, height)
-      .setInteractive({ useHandCursor: true });
+    const indicator = scene.add
+      .rectangle(x, navTop + 6, Math.max(24, tabWidth - 24), 4, COLORS.navIndicator)
+      .setOrigin(0.5, 0);
+    const hitArea = scene.add.zone(x, navTop + height / 2, tabWidth, height).setInteractive({ useHandCursor: true });
     const text = scene.add
       .text(x, navTop + height / 2 + 4, tabs[index], {
         fontFamily: FONT_FAMILIES.body,
@@ -56,9 +56,7 @@ export function buildBottomNavigation({ scene, navTop, navHeight, onSelect, onOv
       .rectangle(x, navTop + 6, Math.max(24, tabWidth - 24), 4, COLORS.navIndicator)
       .setOrigin(0.5, 0)
       .setVisible(false);
-    const hitArea = scene.add
-      .zone(x, navTop + height / 2, tabWidth, height)
-      .setInteractive({ useHandCursor: true });
+    const hitArea = scene.add.zone(x, navTop + height / 2, tabWidth, height).setInteractive({ useHandCursor: true });
     const text = scene.add
       .text(x, navTop + height / 2 + 4, overflowLabel, {
         fontFamily: FONT_FAMILIES.body,
@@ -75,8 +73,7 @@ export function buildBottomNavigation({ scene, navTop, navHeight, onSelect, onOv
       // Default: cycle through overflow pages.
       const hidden = tabs.length - visibleCount;
       const current = scene.activePage ?? 0;
-      const next =
-        current < visibleCount || current >= tabs.length - 1 ? visibleCount : current + 1;
+      const next = current < visibleCount || current >= tabs.length - 1 ? visibleCount : current + 1;
       onSelect(next % tabs.length < visibleCount && hidden > 0 ? visibleCount : next);
     });
     container.add([indicator, hitArea, text]);

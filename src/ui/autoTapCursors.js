@@ -49,7 +49,6 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
           ring,
           slot: remainingIndex,
           countOnRing: Math.max(1, onThisRing),
-          capacity,
           radius,
         };
       }
@@ -60,12 +59,10 @@ export function createAutoTapCursorLayer(scene, centerX, centerY) {
     }
 
     const radius = ORBIT_RADIUS + (VISUAL_RING_COUNT - 1) * RING_GAP;
-    const capacity = ringCapacity(radius);
     return {
       ring: VISUAL_RING_COUNT - 1,
       slot: remainingIndex,
-      countOnRing: Math.max(1, capacity),
-      capacity,
+      countOnRing: Math.max(1, ringCapacity(radius)),
       radius,
     };
   }

@@ -2,6 +2,7 @@ import { COLORS, FONT_FAMILIES, UI_LAYOUT } from '../config/theme.js';
 import { UI_TEXT } from '../config/uiText.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { formatCoins } from '../lib/clickerMath.js';
+import { getAchievementListLines } from './achievementLines.js';
 import { createAscensionTokenBadge } from './ascensionTokenBadge.js';
 
 const LINE_HEIGHT = 28;
@@ -77,7 +78,11 @@ export function buildStatusView({ scene, content, listTop }) {
       const combined = breakdown?.productionMultiplier ?? 1;
       const tokenCount = breakdown?.ascensionTokens ?? state.ascensionTokens ?? 0;
 
-      pushLine(UI_TEXT.statusGeneral, { fontFamily: FONT_FAMILIES.display, fontSize: '18px', color: COLORS.accentText });
+      pushLine(UI_TEXT.statusGeneral, {
+        fontFamily: FONT_FAMILIES.display,
+        fontSize: '18px',
+        color: COLORS.accentText,
+      });
       pushLine(fill(UI_TEXT.statusCoinsBank, { coins: formatCoins(state.coins) }));
       pushLine(fill(UI_TEXT.statusCoinsPrestige, { coins: formatCoins(state.coinsThisAscension) }));
       pushLine(fill(UI_TEXT.statusCoinsAllTime, { coins: formatCoins(state.totalCoinsEarned) }));
@@ -105,19 +110,17 @@ export function buildStatusView({ scene, content, listTop }) {
       });
 
       ACHIEVEMENTS.forEach((achievement) => {
-        const done = unlocked.has(achievement.id);
-        if (done) {
-          pushLine(`✓ ${achievement.name}  (+${Math.round(achievement.idleBonus * 100)}% idle)`, {
-            color: COLORS.positiveText,
-          });
-          pushLine(`   ${achievement.description}`, {
-            fontSize: '14px',
-            color: COLORS.mutedText,
-          });
-          return;
-        }
-
-        pushLine('○ ???', { color: COLORS.mutedText });
+        getAchievementListLines(achievement, unlocked.has(achievement.id)).forEach((line) => {
+          if (line.kind === 'unlocked-title') {
+            pushLine(line.text, { color: COLORS.positiveText });
+            return;
+          }
+          if (line.kind === 'unlocked-desc') {
+            pushLine(line.text, { fontSize: '14px', color: COLORS.mutedText });
+            return;
+          }
+          pushLine(line.text, { color: COLORS.mutedText });
+        });
       });
 
       return items.length * LINE_HEIGHT;

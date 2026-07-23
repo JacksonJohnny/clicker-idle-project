@@ -1,8 +1,34 @@
 /** Milestone achievements → permanent idle production bonuses (milk-like, no lore). */
+
+function hasEarnedAtLeast(totalCoinsEarned, threshold) {
+  if (totalCoinsEarned?.gte) {
+    return Boolean(totalCoinsEarned.gte(threshold));
+  }
+  return Number(totalCoinsEarned) >= threshold;
+}
+
 export const ACHIEVEMENTS = [
-  { id: 'taps-100', name: 'First Hundred', description: 'Reach 100 taps', idleBonus: 0.01, check: (s) => s.totalClicks >= 100 },
-  { id: 'taps-1000', name: 'Tap Trainee', description: 'Reach 1,000 taps', idleBonus: 0.01, check: (s) => s.totalClicks >= 1000 },
-  { id: 'taps-10000', name: 'Tap Veteran', description: 'Reach 10,000 taps', idleBonus: 0.02, check: (s) => s.totalClicks >= 10000 },
+  {
+    id: 'taps-100',
+    name: 'First Hundred',
+    description: 'Reach 100 taps',
+    idleBonus: 0.01,
+    check: (s) => s.totalClicks >= 100,
+  },
+  {
+    id: 'taps-1000',
+    name: 'Tap Trainee',
+    description: 'Reach 1,000 taps',
+    idleBonus: 0.01,
+    check: (s) => s.totalClicks >= 1000,
+  },
+  {
+    id: 'taps-10000',
+    name: 'Tap Veteran',
+    description: 'Reach 10,000 taps',
+    idleBonus: 0.02,
+    check: (s) => s.totalClicks >= 10000,
+  },
   {
     id: 'own-g1-10',
     name: 'Starter Pack',
@@ -50,14 +76,14 @@ export const ACHIEVEMENTS = [
     name: 'Millionaire',
     description: 'Earn 1 million coins (all time)',
     idleBonus: 0.01,
-    check: (s) => Number(s.totalCoinsEarned) >= 1e6 || s.totalCoinsEarned?.gte?.(1e6),
+    check: (s) => hasEarnedAtLeast(s.totalCoinsEarned, 1e6),
   },
   {
     id: 'coins-1b',
     name: 'Billionaire',
     description: 'Earn 1 billion coins (all time)',
     idleBonus: 0.02,
-    check: (s) => Number(s.totalCoinsEarned) >= 1e9 || s.totalCoinsEarned?.gte?.(1e9),
+    check: (s) => hasEarnedAtLeast(s.totalCoinsEarned, 1e9),
   },
   {
     id: 'efficiency-1',

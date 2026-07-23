@@ -7,9 +7,9 @@ Reusable Phaser + Capacitor idle clicker foundation.
 - `src/config` — resolution, theme, UI text, buy amounts, `SAVE_KEY` / `SAVE_VERSION`
 - `src/controllers` — `ListScrollController` (visual scrollbar + finger scroll)
 - `src/data` — generators, click upgrades, `metaUpgrades.js`, `achievements.js`
-- `src/lib` — pure economy (`clickerMath`) + Auto Tap progress + `prestige.js`
-- `src/services` — save/migrations, settings, feedback, storage adapter
-- `src/ui` — Phaser builders (no buy rules) + `metaUpgradeCopy` + token badge
+- `src/lib` — pure economy (`clickerMath`) + Auto Tap progress + `prestige.js` + `saveState.js` (normalize / id aliases)
+- `src/services` — save I/O + versioned migrations, settings, feedback, storage adapter
+- `src/ui` — Phaser builders (no buy rules) + `metaUpgradeCopy` + `achievementLines` + token badge
 - `src/scenes` — `ClickerScene` + `scenes/clicker/*` helpers (page builders, lists, overlays)
 
 ## Naming glossary
@@ -38,7 +38,7 @@ Keep save field `boosts` stable so forks and old saves stay compatible. Rename U
 1. Do **not** rename `SAVE_KEY` (or add the old key to `LEGACY_SAVE_KEYS`).
 2. Bump `SAVE_VERSION` in `gameConfig.js`.
 3. Add `{ from, to, migrate }` in `src/services/saveMigrations.js`.
-4. If you rename an id, add it to `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES`.
+4. If you rename an id, add it to `UPGRADE_ID_ALIASES` / `BOOST_ID_ALIASES` in `src/lib/saveState.js`.
 
 ## Core systems included
 

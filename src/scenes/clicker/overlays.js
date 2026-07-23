@@ -3,7 +3,7 @@ import { UI_TEXT } from '../../config/uiText.js';
 import { formatCoins } from '../../lib/clickerMath.js';
 import { setActivePage } from './pageNavigation.js';
 
-export function formatOfflineDuration(totalSeconds) {
+function formatOfflineDuration(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
@@ -144,7 +144,7 @@ export function destroyStartOverlay(scene) {
 }
 
 /** Generic confirm modal (prestige, destructive actions). */
-export function showConfirmDialog(
+function showConfirmDialog(
   scene,
   { title, body, confirmLabel, cancelLabel, onConfirm, onCancel, danger = false, confirmDelaySeconds = 0 },
 ) {
@@ -262,16 +262,7 @@ export function showConfirmDialog(
     .setOrigin(0.5);
 
   const dialog = scene.add
-    .container(0, 0, [
-      overlay,
-      panel,
-      titleText,
-      bodyText,
-      confirmButton,
-      confirmText,
-      cancelButton,
-      cancelText,
-    ])
+    .container(0, 0, [overlay, panel, titleText, bodyText, confirmButton, confirmText, cancelButton, cancelText])
     .setDepth(3200);
 
   scene.confirmDialog = dialog;

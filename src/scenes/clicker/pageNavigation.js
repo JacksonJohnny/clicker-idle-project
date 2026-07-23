@@ -10,7 +10,7 @@ export const PAGE = {
   SETTINGS: 5,
 };
 
-export const MAIN_PAGE_MAX = PAGE.PRESTIGE;
+const MAIN_PAGE_MAX = PAGE.PRESTIGE;
 export const SETTINGS_PAGE = PAGE.SETTINGS;
 
 export function setupPageSwipe(scene) {

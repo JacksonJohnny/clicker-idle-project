@@ -1,7 +1,7 @@
 /**
  * Sync key-value storage via localStorage.
- * Native Capacitor Preferences can be wired later behind a build-time flag;
- * dynamic imports of @capacitor/preferences break Vite web/dev resolution.
+ * Native Capacitor Preferences can be wired later behind a build-time flag
+ * (avoid dynamic imports that break Vite web/dev resolution).
  */
 import { SAVE_KEY, LEGACY_SAVE_KEYS } from '../config/gameConfig.js';
 

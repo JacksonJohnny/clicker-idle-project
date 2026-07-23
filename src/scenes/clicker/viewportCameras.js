@@ -1,5 +1,3 @@
-import { COLORS } from '../../config/theme.js';
-
 /**
  * Creates a clipped list camera and cross-ignores sibling list contents.
  * @param {Phaser.Scene} scene

@@ -81,9 +81,7 @@ export function buildPrestigeView({ scene, container, onRequestPrestige }) {
           UI_TEXT.prestigeCountLabel.replace('{count}', String(preview.prestigeCount)),
           UI_TEXT.prestigeCoinsThisRun.replace('{coins}', formatCoins(state.coinsThisAscension)),
           '',
-          gain > 0
-            ? UI_TEXT.prestigeNowFor.replace('{count}', String(gain))
-            : UI_TEXT.prestigeEarnMore,
+          gain > 0 ? UI_TEXT.prestigeNowFor.replace('{count}', String(gain)) : UI_TEXT.prestigeEarnMore,
         ].join('\n'),
       );
       const canPrestige = gain > 0;
