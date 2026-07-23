@@ -1,7 +1,15 @@
 {
-  "name": "clicker-game",
+  "name": "mobile-idle-clicker-boilerplate",
   "version": "1.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JacksonJohnny/mobile-idle-clicker-boilerplate.git"
+  },
+  "homepage": "https://github.com/JacksonJohnny/mobile-idle-clicker-boilerplate",
+  "bugs": {
+    "url": "https://github.com/JacksonJohnny/mobile-idle-clicker-boilerplate/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -2,6 +2,8 @@
 
 Boilerplate mobile-first para jogos clicker/idle com **Phaser 4**, **Vite**, **Decimal.js** e **Capacitor 8**.
 
+Repositório: [JacksonJohnny/mobile-idle-clicker-boilerplate](https://github.com/JacksonJohnny/mobile-idle-clicker-boilerplate)
+
 Resolução base: `540×960`. App id Capacitor: `com.clickergame.app`.
 
 Guia curto de fork/rebrand: [`BOILERPLATE.md`](BOILERPLATE.md).
